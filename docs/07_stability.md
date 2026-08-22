@@ -8,7 +8,7 @@ The first version of this analysis fit each model on a bootstrap resample and th
 
 Each cohort is split three ways at student level. Model A trains on part A, model B on part B, and both rank part C, which neither has seen. Discrimination is reported on part C so that any inflation is visible.
 
-10 replications per estimator. The ceiling row is two models trained on identical data with different seeds, which is the best agreement achievable.
+10 replications per estimator. The ceiling row is two gradient boosting models trained on identical data with different seeds. It bounds gradient boosting only. Logistic regression is close to deterministic given its training data, so its own ceiling would be near 1.0 and is not shown.
 
 ## Day 0, cohort CCC 2014J, N = 2,285, evaluation part = 761
 
@@ -36,6 +36,6 @@ Top decile predicted risk: median 0.836, interquartile range 0.104.
 
 AUC on part C should sit near the cross validated figures in `04_risk_model.md`. If it does, the measurement is honest and the overlap numbers can be trusted.
 
-The ceiling row bounds what any estimator could achieve. Agreement below the ceiling is caused by the training data differing, which is the real world condition. Agreement at the ceiling would mean the training data does not matter.
+The ceiling row bounds gradient boosting. Where a gradient boosting figure sits below it, the shortfall is caused by the training data differing, which is the real world condition. Where logistic exceeds the ceiling, that is not a contradiction: logistic has almost no seed dependence, so the gradient boosting ceiling says nothing about it.
 
 Whichever estimator is most stable here is the one `06_allocation.py` should use, and its agreement figures are the noise floor against which the risk versus effect divergence must be judged.

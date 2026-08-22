@@ -37,9 +37,11 @@ rather than the problem:
     bagged      mean over BAG_SIZE fits on resamples of the training part
     logistic    L2 logistic regression, higher bias, much lower variance
 
-A ceiling is also reported: two models trained on the SAME data with different random
-seeds. Any disagreement there is pure algorithmic nondeterminism and is the best
-agreement any estimator could achieve.
+A ceiling is also reported: two gradient boosting models trained on the SAME data with
+different random seeds. Any disagreement there is algorithmic nondeterminism in that
+estimator alone. It bounds what gradient boosting could achieve; it does not bound the
+logistic model, which is close to deterministic given its training data and whose own
+ceiling would be near 1.0.
 
 Usage:
     python 07_stability.py
@@ -169,8 +171,10 @@ w(
 )
 w()
 w(
-    f"{N_REPLICATIONS} replications per estimator. The ceiling row is two models trained "
-    "on identical data with different seeds, which is the best agreement achievable."
+    f"{N_REPLICATIONS} replications per estimator. The ceiling row is two gradient "
+    "boosting models trained on identical data with different seeds. It bounds gradient "
+    "boosting only. Logistic regression is close to deterministic given its training "
+    "data, so its own ceiling would be near 1.0 and is not shown."
 )
 w()
 
@@ -275,9 +279,11 @@ w(
 )
 w()
 w(
-    "The ceiling row bounds what any estimator could achieve. Agreement below the ceiling "
-    "is caused by the training data differing, which is the real world condition. "
-    "Agreement at the ceiling would mean the training data does not matter."
+    "The ceiling row bounds gradient boosting. Where a gradient boosting figure sits "
+    "below it, the shortfall is caused by the training data differing, which is the real "
+    "world condition. Where logistic exceeds the ceiling, that is not a contradiction: "
+    "logistic has almost no seed dependence, so the gradient boosting ceiling says "
+    "nothing about it."
 )
 w()
 w(
