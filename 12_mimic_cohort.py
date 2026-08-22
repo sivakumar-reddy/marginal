@@ -167,9 +167,18 @@ w(f"| 1 | Overlapping admission, transfer or record error | {n_ov:,} | {len(df):
 
 died = df["hospital_expire_flag"] == 1
 n_died = int(died.sum())
-df_died_final = df[died & df["is_final"]].copy()  # kept for regime C
+
+# Regime C needs the final admissions that ended in death: those are the only censored
+# outcomes MIMIC resolves. They are held aside BEFORE the exclusion, because after it
+# they are no longer in df and cannot be recovered by filtering.
+died_final = df[died & df["is_final"]].copy()
+died_final["readmit_resolved_negative"] = 1
+
 df = df[~died].copy()
 w(f"| 2 | Died during index admission | {n_died:,} | {len(df):,} |")
+w(
+    f"|   | of which final admissions, retained for regime C only | {len(died_final):,} | |"
+)
 
 dl = df["discharge_location"].fillna("")
 hospice = dl.str.contains("HOSPICE", case=False, na=False)
@@ -177,6 +186,11 @@ n_hosp = int(hospice.sum())
 df = df[~hospice].copy()
 w(f"| 3 | Discharged to hospice | {n_hosp:,} | {len(df):,} |")
 w()
+
+# The retained rows must pass the same exclusions as everything else, apart from the
+# death exclusion they are defined by.
+dfl = died_final["discharge_location"].fillna("")
+died_final = died_final[~dfl.str.contains("HOSPICE", case=False, na=False)].copy()
 
 stats["exclusions"] = {
     "start": n0,
@@ -201,14 +215,22 @@ w()
 first_svc = (
     svc.sort_values("transfertime").groupby("hadm_id")["curr_service"].first().rename("service")
 )
-df = df.merge(first_svc, left_on="hadm_id", right_index=True, how="left")
-df = df.merge(pat, on="subject_id", how="left", validate="many_to_one")
+
+
+def attach(frame):
+    frame = frame.merge(first_svc, left_on="hadm_id", right_index=True, how="left")
+    frame = frame.merge(pat, on="subject_id", how="left", validate="many_to_one")
+    return frame
+
+
+df = attach(df)
+died_final = attach(died_final)
 
 svc_counts = df["service"].value_counts()
 big = set(svc_counts[svc_counts >= MIN_SERVICE].index)
-df["service_grouped"] = np.where(df["service"].isin(big), df["service"], "OTHER")
-
-df["fold"] = df["subject_id"].map(assign_fold)
+for frame in (df, died_final):
+    frame["service_grouped"] = np.where(frame["service"].isin(big), frame["service"], "OTHER")
+    frame["fold"] = frame["subject_id"].map(assign_fold)
 
 # ---------------------------------------------------------------------------
 # Build regimes
@@ -222,8 +244,9 @@ for regime in ("A", "B", "C"):
     elif regime == "B":
         sub = df.copy()
     else:
-        keep_final = df["is_final"] & (df["hadm_id"].isin(df_died_final["hadm_id"]))
-        sub = df[~df["is_final"] | keep_final].copy()
+        # Non final admissions, plus final admissions the patient did not survive. Those
+        # deaths resolve the censoring: the patient was genuinely not readmitted.
+        sub = pd.concat([df[~df["is_final"]], died_final], ignore_index=True)
 
     for wd in WINDOWS:
         s = sub.copy()
@@ -233,6 +256,16 @@ for regime in ("A", "B", "C"):
         frames.append(s)
 
 cohort = pd.concat(frames, ignore_index=True)
+
+# Regime C must sit strictly between A and B in size. If it equals A, the death resolved
+# rows were lost, which is exactly the bug the first version of this script had.
+n_a = int(((cohort["regime"] == "A") & (cohort["window"] == WINDOWS[0])).sum())
+n_b = int(((cohort["regime"] == "B") & (cohort["window"] == WINDOWS[0])).sum())
+n_c = int(((cohort["regime"] == "C") & (cohort["window"] == WINDOWS[0])).sum())
+assert n_a < n_c < n_b, (
+    f"Regime C ({n_c:,}) must lie strictly between A ({n_a:,}) and B ({n_b:,}). "
+    "Equality with A means the death resolved final admissions were dropped."
+)
 
 keep = [
     "subject_id", "hadm_id", "regime", "window", "readmit",

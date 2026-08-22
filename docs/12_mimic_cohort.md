@@ -21,6 +21,7 @@ A and B bracket the truth. If a conclusion holds under both, censoring does not 
 | 0 | All admissions | | 546,028 |
 | 1 | Overlapping admission, transfer or record error | 48 | 545,980 |
 | 2 | Died during index admission | 11,800 | 534,180 |
+|   | of which final admissions, retained for regime C only | 11,797 | |
 | 3 | Discharged to hospice | 5,375 | 528,805 |
 
 Elective admissions, transfers to other facilities and discharges against medical advice are NOT excluded. Each is arguable. CMS readmission measures exclude planned admissions, but this project models care coordination capacity rather than a reimbursement penalty, and a planned admission still consumes panel attention.
@@ -33,8 +34,8 @@ Elective admissions, transfers to other facilities and discharges against medica
 | A | 90 | 321,547 | 164,438 | 51.14% |
 | B | 30 | 528,805 | 108,558 | 20.53% |
 | B | 90 | 528,805 | 164,438 | 31.10% |
-| C | 30 | 321,547 | 108,558 | 33.76% |
-| C | 90 | 321,547 | 164,438 | 51.14% |
+| C | 30 | 333,323 | 108,558 | 32.57% |
+| C | 90 | 333,323 | 164,438 | 49.33% |
 
 At 30 days the rate ranges from 20.53% under regime B to 33.76% under regime A, a spread of 13.23 points. That spread is caused entirely by how unresolvable outcomes are handled, not by anything clinical. Any single figure quoted without its regime is uninterpretable.
 
