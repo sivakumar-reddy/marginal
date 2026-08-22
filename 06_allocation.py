@@ -1,66 +1,73 @@
 """
-06_allocation.py
+06_allocation.py  (version 2)
 
-The comparison the project exists to make.
+The comparison the project exists to make, measured against a valid noise floor.
 
-Given a capacity k, two ways to choose who receives an intervention:
+WHY THIS WAS REWRITTEN
+======================
+Version 1 measured its noise floor by fitting models on bootstrap resamples and then
+predicting on rows those models had trained on. `07_stability.md` showed that inflated
+AUC to 0.93 against an honest 0.70, so the floor was memorisation noise rather than
+ranking instability. Every conclusion version 1 drew about which divergences survived
+was therefore unsupported.
 
-    R_k   the k people with the highest predicted risk
-    E_k   the k people with the highest predicted marginal effect
+Two further changes follow from `07_stability.md`:
 
-This script measures how far apart those two sets are, and what the difference costs.
+  Estimator. Logistic regression replaces gradient boosting. It was the most stable of
+  the three tested, at equal or better AUC out of sample. Since the object of study is a
+  ranking, an estimator that cannot reproduce its own ranking is the wrong instrument.
 
-WHAT THIS IS NOT
-================
-This is not an estimate of treatment effects. No randomised experiment is in hand for
-this population, so no effect is identified here. What follows is a decision analysis:
-given a stated efficacy structure, which ranking maximises expected outcomes averted,
-and over what range of that structure does the answer hold.
+  Measurement. Divergence and noise floor are now computed on the same students, in the
+  same replication, at the same capacity. Version 1 compared numbers produced by
+  different procedures on different samples, which made the comparison unsound even
+  before the in sample error.
 
-The efficacy family, one parameter:
+THE DESIGN
+==========
+For each cohort and each replication, the cohort is split three ways at student level:
+
+    part A   trains model A
+    part B   trains model B
+    part C   evaluation, seen by neither
+
+Both models rank part C by predicted risk. Then, on part C:
+
+    noise floor   overlap between model A's top k and model B's top k.
+                  Two honest analysts with different halves of the history.
+
+    divergence    overlap between model A's risk top k and the effect ranking
+                  derived from model A's own predictions.
+
+Divergence below the noise floor means the two rankings disagree by more than two
+independent risk models disagree with each other. Divergence above it means the gap is
+smaller than the instability of the thing being ranked, and nothing can be concluded.
+
+EFFICACY
+========
+No randomised experiment is available, so treatment effects are not estimated. Efficacy
+is a one parameter family:
 
     tau(r) = c * r * (1 - r)^gamma
 
-    gamma = 0   effect proportional to baseline risk. Monotone increasing in r, so
-                risk ranking is optimal and the project's thesis is FALSE here.
-    gamma > 0   effect peaks at r = 1 / (1 + gamma) and falls above it. The intervention
-                saturates: people at very high risk are leaving for reasons it does not
-                touch.
+gamma = 0 makes effect proportional to risk, the two rankings identical, and the thesis
+false. gamma > 0 puts the peak at r = 1 / (1 + gamma). c is solved per cohort so mean
+effect among the treated is held at ATE_TARGET across every gamma, so that gamma varies
+shape without varying magnitude.
 
-c is solved per cohort so that the average effect among the treated is held fixed at
-ATE_TARGET across every gamma. Without that normalisation, changing gamma would change
-both the shape and the magnitude of efficacy, and the comparison would be meaningless.
-
-A consequence worth stating plainly: tau is a deterministic function of r here, so the
-effect ranking is a reordering of the same risk scores rather than independent
-information. Real treatment effect heterogeneity depends on covariates beyond baseline
-risk, and estimating that is exactly what the missing experiment would supply. This
-analysis therefore bounds the divergence attributable to efficacy SHAPE alone. Genuine
-covariate driven heterogeneity would add to it, not subtract.
-
-NOISE FLOOR
-===========
-An overlap of 0.4 means nothing on its own if two refits of the risk model on resampled
-data also overlap at 0.4. The script therefore refits the risk model on bootstrap
-resamples and reports the overlap between two independent risk rankings at the same
-capacity. Any divergence inside that band is estimation noise, not a finding. This test
-is pre committed and is reported whether or not it is passed.
-
-Analysis runs WITHIN cohort. 05_cohort_validation.md showed the model does not transfer
-across modules, so a pooled allocation would be built on predictions known to be
-miscalibrated out of sample.
+tau is a function of r alone, so this bounds the divergence attributable to efficacy
+shape only. Covariate driven heterogeneity, which the missing experiment would supply,
+would add to it.
 
 Usage:
     python 06_allocation.py
 
 Reads:
-    data/processed/risk_oof_d{D}.parquet
     data/processed/features_d{D}.parquet
 
 Writes:
     docs/06_allocation.md
     cache/allocation_stats.json
-    data/processed/allocation_curves.parquet   for the interactive console later
+    data/processed/allocation_curves.parquet
 """
 
 import json
@@ -69,10 +76,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.preprocessing import OrdinalEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 PROC = Path("data/processed")
 DOCS = Path("docs")
@@ -81,25 +93,18 @@ CACHE = Path("cache")
 DECISION_DAYS = [0, 28, 56, 84]
 GAMMAS = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0]
 CAPACITY_PCT = [0.01, 0.02, 0.05, 0.10, 0.20]
-ATE_TARGET = 0.05  # 5 percentage point average reduction among the treated
-MIN_COHORT = 500
-N_BOOTSTRAP = 10
+ATE_TARGET = 0.05
+MIN_COHORT = 1500
+N_REPLICATIONS = 10
 SEED = 20260821
 
-CATEGORICAL = [
-    "gender",
-    "region",
-    "highest_education",
-    "imd_band",
-    "age_band",
-    "disability",
-]
+CATEGORICAL = ["gender", "region", "highest_education", "imd_band", "age_band", "disability"]
 DROP = ["id_student", "fold", "outcome", "code_module", "code_presentation"]
 
 rng = np.random.default_rng(SEED)
 stats = {}
 lines = []
-curves = []
+rows = []
 
 
 def w(s=""):
@@ -107,59 +112,133 @@ def w(s=""):
     print(s)
 
 
-def tau_of_r(r, gamma, ate_target):
-    """Effect as a function of baseline risk, normalised to a fixed mean effect."""
-    shape = r * (1.0 - r) ** gamma
-    m = shape.mean()
-    if m <= 0:
-        return np.zeros_like(shape)
-    return shape * (ate_target / m)
-
-
-def topk_mask(x, k):
+def topk(x, k):
     idx = np.argsort(-x, kind="stable")[:k]
     m = np.zeros(len(x), dtype=bool)
     m[idx] = True
     return m
 
 
+def tau_of_r(r, gamma, ate):
+    shape = r * (1.0 - r) ** gamma
+    m = shape.mean()
+    return shape * (ate / m) if m > 0 else np.zeros_like(shape)
+
+
+def fit(Xtr, ytr, Xte, cats, nums):
+    pre = ColumnTransformer(
+        [
+            ("cat", OneHotEncoder(handle_unknown="ignore", min_frequency=20), cats),
+            ("num", make_pipeline(SimpleImputer(strategy="median"), StandardScaler()), nums),
+        ]
+    )
+    pipe = make_pipeline(pre, LogisticRegression(max_iter=2000))
+    pipe.fit(Xtr, ytr)
+    return pipe.predict_proba(Xte)[:, 1]
+
+
 w("# 06. Allocation")
 w()
 w("Generated by `06_allocation.py`. Do not edit by hand.")
 w()
-w("## What this measures, and what it does not")
+w("## Correction")
 w()
 w(
-    "No randomised experiment is available for this population. Treatment effects are "
-    "not estimated here. This is a decision analysis: given a stated efficacy structure, "
-    "which ranking maximises expected outcomes averted, and over what range of that "
-    "structure does the answer hold."
+    "Version 1 of this analysis measured its noise floor on rows the models had trained "
+    "on. `07_stability.md` showed that inflated AUC to 0.93 against an honest 0.70, so "
+    "the floor was memorisation noise. Every conclusion version 1 drew about which "
+    "divergences survived was unsupported and is replaced here."
 )
 w()
-w("Efficacy family, one parameter:")
+w(
+    "Two changes follow. Logistic regression replaces gradient boosting, because "
+    "`07_stability.md` found it the most stable of three estimators at equal or better "
+    "out of sample AUC, and a ranking study needs an estimator that can reproduce its "
+    "own ranking. And divergence and noise floor are now measured on the same students, "
+    "in the same replication, at the same capacity."
+)
+w()
+w("## Design")
+w()
+w(
+    "Each cohort is split three ways at student level. Model A trains on part A, model B "
+    "on part B, both rank part C. The noise floor is the overlap between A and B: two "
+    "analysts with different halves of the same history. The divergence is the overlap "
+    "between A's risk ranking and the effect ranking derived from A's own predictions."
+)
+w()
+w("Efficacy is assumed, not estimated:")
 w()
 w("```")
 w("tau(r) = c * r * (1 - r)^gamma")
 w("```")
 w()
 w(
-    "`gamma = 0` makes effect proportional to risk. Effect is then monotone increasing "
-    "in risk, risk ranking is optimal, and the thesis is false. `gamma > 0` makes effect "
-    "peak at `r = 1 / (1 + gamma)` and decline above it. `c` is solved per cohort so the "
-    "mean effect among the treated equals "
-    f"{ATE_TARGET:.0%} at every gamma, holding total efficacy fixed while shape varies."
+    f"`c` is solved per cohort so mean effect among the treated equals {ATE_TARGET:.0%} at "
+    "every gamma. `gamma = 0` makes the rankings identical and is the control row. "
+    "Because tau is a function of r alone, this bounds divergence from efficacy shape "
+    "only; covariate driven heterogeneity would add to it."
 )
 w()
-w(
-    "Because tau is a function of r alone, the effect ranking here is a reordering of the "
-    "same scores. This bounds the divergence attributable to efficacy shape only. Real "
-    "heterogeneity depends on covariates beyond baseline risk, and estimating it is what "
-    "the missing experiment would supply. That component would add to the divergence "
-    "measured here, not reduce it."
-)
+w(f"Cohorts with at least {MIN_COHORT:,} registrations. {N_REPLICATIONS} replications each.")
 w()
-w(f"Analysis runs within cohort, minimum {MIN_COHORT:,} registrations.")
-w()
+
+cohort_list = {}
+
+for D in DECISION_DAYS:
+    feat = pd.read_parquet(PROC / f"features_d{D}.parquet")
+    sizes = feat.groupby(["code_module", "code_presentation"]).size()
+    keep = sizes[sizes >= MIN_COHORT].index
+    cohort_list[D] = [f"{m} {p}" for m, p in keep]
+
+    cols = [c for c in feat.columns if c not in DROP]
+    cats = [c for c in CATEGORICAL if c in cols]
+    nums = [c for c in cols if c not in cats]
+
+    for mp in keep:
+        sub = feat[
+            (feat["code_module"] == mp[0]) & (feat["code_presentation"] == mp[1])
+        ].reset_index(drop=True)
+        X, y = sub[cols], sub["outcome"].to_numpy()
+        n = len(sub)
+
+        for _ in range(N_REPLICATIONS):
+            perm = rng.permutation(n)
+            a, b, c = np.array_split(perm, 3)
+            yc = y[c]
+            if not (0 < yc.sum() < len(yc)):
+                continue
+
+            ra = fit(X.iloc[a], y[a], X.iloc[c], cats, nums)
+            rb = fit(X.iloc[b], y[b], X.iloc[c], cats, nums)
+            auc = roc_auc_score(yc, ra)
+
+            for p in CAPACITY_PCT:
+                k = max(1, int(round(p * len(c))))
+                mask_ra = topk(ra, k)
+                floor = (mask_ra & topk(rb, k)).sum() / k
+
+                for g in GAMMAS:
+                    tau = tau_of_r(ra, g, ATE_TARGET)
+                    mask_e = topk(tau, k)
+                    v_r, v_e = tau[mask_ra].sum(), tau[mask_e].sum()
+                    rows.append(
+                        {
+                            "day": D,
+                            "cohort": f"{mp[0]} {mp[1]}",
+                            "n_eval": len(c),
+                            "capacity_pct": p,
+                            "k": k,
+                            "gamma": g,
+                            "noise_floor": float(floor),
+                            "overlap": float((mask_ra & mask_e).sum() / k),
+                            "value_gap_pct": float((v_e - v_r) / v_e * 100) if v_e > 0 else 0.0,
+                            "auc": float(auc),
+                        }
+                    )
+
+cur = pd.DataFrame(rows)
+cur.to_parquet(PROC / "allocation_curves.parquet", index=False)
 
 # ---------------------------------------------------------------------------
 # Noise floor
@@ -168,126 +247,44 @@ w()
 w("## Noise floor")
 w()
 w(
-    "Two risk models fit on independent bootstrap resamples of the same cohort produce "
-    "two risk rankings. Their overlap at capacity k is the level below which no "
-    "divergence can be called a finding."
+    "Overlap between two risk models trained on different halves of the same cohort, "
+    "measured on students neither has seen. Mean across cohorts and replications."
 )
 w()
-
-noise = {}
-
+w("| Day | Cohorts | AUC | " + " | ".join(f"{p:.0%}" for p in CAPACITY_PCT) + " |")
+w("|---:|---:|---:|" + "---:|" * len(CAPACITY_PCT))
+floors = {}
 for D in DECISION_DAYS:
-    feat = pd.read_parquet(PROC / f"features_d{D}.parquet")
-    cohorts = (
-        feat.groupby(["code_module", "code_presentation"]).size().loc[lambda s: s >= MIN_COHORT]
+    d = cur[cur["day"] == D]
+    cells = []
+    floors[D] = {}
+    for p in CAPACITY_PCT:
+        v = d[d["capacity_pct"] == p]["noise_floor"].mean()
+        floors[D][p] = v
+        cells.append(f"{v:.2f}")
+    w(
+        f"| {D} | {len(cohort_list[D])} | {d['auc'].mean():.3f} | " + " | ".join(cells) + " |"
     )
-    # One representative cohort, the largest, to keep runtime honest.
-    mp = cohorts.idxmax()
-    sub = feat[
-        (feat["code_module"] == mp[0]) & (feat["code_presentation"] == mp[1])
-    ].reset_index(drop=True)
-
-    cols = [c for c in sub.columns if c not in DROP]
-    cats = [c for c in CATEGORICAL if c in cols]
-    X = sub[cols].copy()
-    for c in cats:
-        X[c] = X[c].astype("object").where(X[c].notna(), "__missing__")
-    if cats:
-        X[cats] = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1).fit_transform(
-            X[cats]
-        )
-    X = X.astype(float)
-    mask = [c in cats for c in X.columns]
-    y = sub["outcome"].to_numpy()
-    n = len(sub)
-
-    per_cap = {f"{p:.2f}": [] for p in CAPACITY_PCT}
-    for _ in range(N_BOOTSTRAP):
-        preds = []
-        for _ in range(2):
-            idx = rng.integers(0, n, n)
-            clf = HistGradientBoostingClassifier(
-                categorical_features=mask, random_state=int(rng.integers(1e6)), early_stopping=True,
-                validation_fraction=0.15,
-            )
-            clf.fit(X.iloc[idx], y[idx])
-            preds.append(clf.predict_proba(X)[:, 1])
-        for p in CAPACITY_PCT:
-            k = max(1, int(round(p * n)))
-            o = (topk_mask(preds[0], k) & topk_mask(preds[1], k)).sum() / k
-            per_cap[f"{p:.2f}"].append(o)
-
-    noise[str(D)] = {
-        "cohort": f"{mp[0]} {mp[1]}",
-        "n": int(n),
-        "overlap": {c: {"mean": float(np.mean(v)), "sd": float(np.std(v, ddof=1))} for c, v in per_cap.items()},
-    }
-
-w("| Day | Cohort | N | " + " | ".join(f"{p:.0%}" for p in CAPACITY_PCT) + " |")
-w("|---:|---|---:|" + "---:|" * len(CAPACITY_PCT))
-for D in DECISION_DAYS:
-    nz = noise[str(D)]
-    cells = " | ".join(
-        f"{nz['overlap'][f'{p:.2f}']['mean']:.2f}" for p in CAPACITY_PCT
-    )
-    w(f"| {D} | {nz['cohort']} | {nz['n']:,} | {cells} |")
 w()
 w(
-    "Two refits of the same model on the same cohort agree only this well. Risk versus "
-    "effect overlap must fall clearly below these values to mean anything."
+    "These are the values the risk versus effect overlap must fall below. AUC is "
+    "reported alongside so that any inflation would be visible."
 )
 w()
 
-stats["noise_floor"] = noise
-
 # ---------------------------------------------------------------------------
-# Allocation comparison
+# Divergence against the floor
 # ---------------------------------------------------------------------------
 
-for D in DECISION_DAYS:
-    oof = pd.read_parquet(PROC / f"risk_oof_d{D}.parquet")
-    sizes = oof.groupby(["code_module", "code_presentation"]).size()
-    keep = sizes[sizes >= MIN_COHORT].index
-
-    for mp in keep:
-        sub = oof[
-            (oof["code_module"] == mp[0]) & (oof["code_presentation"] == mp[1])
-        ]
-        r = sub["risk"].to_numpy()
-        n = len(r)
-
-        for g in GAMMAS:
-            tau = tau_of_r(r, g, ATE_TARGET)
-            for p in CAPACITY_PCT:
-                k = max(1, int(round(p * n)))
-                mr, me = topk_mask(r, k), topk_mask(tau, k)
-                v_r, v_e = tau[mr].sum(), tau[me].sum()
-                curves.append(
-                    {
-                        "day": D,
-                        "module": mp[0],
-                        "presentation": mp[1],
-                        "n": n,
-                        "gamma": g,
-                        "capacity_pct": p,
-                        "k": k,
-                        "overlap": float((mr & me).sum() / k),
-                        "value_risk": float(v_r),
-                        "value_effect": float(v_e),
-                        "value_gap_pct": float((v_e - v_r) / v_e * 100) if v_e > 0 else 0.0,
-                    }
-                )
-
-cur = pd.DataFrame(curves)
-cur.to_parquet(PROC / "allocation_curves.parquet", index=False)
-
-# ---------------------------------------------------------------------------
-# Headline tables
-# ---------------------------------------------------------------------------
-
-w("## Overlap between the two rankings")
+w("## Divergence relative to the noise floor")
 w()
-w("Mean across cohorts, weighted equally. Rows are the efficacy shape, columns capacity.")
+w(
+    "Each cell is the risk versus effect overlap minus the noise floor at the same day "
+    "and capacity. Negative means the two rankings disagree by more than two independent "
+    "risk models do, which is the only condition under which the divergence means "
+    "anything. Positive means the gap is smaller than the instability of the ranking "
+    "itself and nothing can be concluded."
+)
 w()
 
 for D in DECISION_DAYS:
@@ -297,20 +294,23 @@ for D in DECISION_DAYS:
     w("| gamma | peak risk | " + " | ".join(f"{p:.0%}" for p in CAPACITY_PCT) + " |")
     w("|---:|---:|" + "---:|" * len(CAPACITY_PCT))
     for g in GAMMAS:
-        peak = 1.0 / (1.0 + g)
-        cells = " | ".join(
-            f"{d[(d['gamma'] == g) & (d['capacity_pct'] == p)]['overlap'].mean():.2f}"
-            for p in CAPACITY_PCT
-        )
-        w(f"| {g:.1f} | {peak:.2f} | {cells} |")
+        cells = []
+        for p in CAPACITY_PCT:
+            s = d[(d["gamma"] == g) & (d["capacity_pct"] == p)]
+            cells.append(f"{s['overlap'].mean() - floors[D][p]:+.2f}")
+        w(f"| {g:.1f} | {1 / (1 + g):.2f} | " + " | ".join(cells) + " |")
     w()
+
+# ---------------------------------------------------------------------------
+# Value gap
+# ---------------------------------------------------------------------------
 
 w("## Cost of ranking by risk")
 w()
 w(
-    "Percentage of achievable outcomes averted that risk ranking leaves on the table. "
-    "This is the number that decides whether the overlap gap matters. A low overlap with "
-    "a negligible value gap is not a reason to change anything."
+    "Percentage of achievable outcomes averted that risk ranking forgoes. Report this "
+    "only for cells where the divergence clears the noise floor. Elsewhere it is a "
+    "difference between two rankings that cannot be told apart."
 )
 w()
 
@@ -321,25 +321,33 @@ for D in DECISION_DAYS:
     w("| gamma | " + " | ".join(f"{p:.0%}" for p in CAPACITY_PCT) + " |")
     w("|---:|" + "---:|" * len(CAPACITY_PCT))
     for g in GAMMAS:
-        cells = " | ".join(
-            f"{d[(d['gamma'] == g) & (d['capacity_pct'] == p)]['value_gap_pct'].mean():.1f}%"
-            for p in CAPACITY_PCT
-        )
-        w(f"| {g:.1f} | {cells} |")
+        cells = []
+        for p in CAPACITY_PCT:
+            s = d[(d["gamma"] == g) & (d["capacity_pct"] == p)]
+            clears = s["overlap"].mean() < floors[D][p]
+            v = s["value_gap_pct"].mean()
+            cells.append(f"{v:.1f}%" if clears else f"({v:.1f}%)")
+        w(f"| {g:.1f} | " + " | ".join(cells) + " |")
     w()
+w("Values in parentheses did not clear the noise floor and are not claims.")
+w()
 
-w("## Reading this")
+w("## What this supports")
 w()
 w(
-    "At gamma = 0 the two rankings are identical by construction and the value gap is "
-    "zero. That row is the control. Everything else is measured against it."
+    "The instability documented in `07_stability.md` sits upstream of everything here. "
+    "Two risk models built on different halves of the same cohort already disagree "
+    "substantially about who belongs at the top of the list. Any argument about whether "
+    "a different ranking would be better has to clear that bar first, and much of the "
+    "parameter space does not."
 )
 w()
 w(
-    "The question a director faces is not which ranking is better in the abstract. It is "
-    "whether their intervention saturates, and at what level of risk. That is an "
-    "empirical question about their own programme which this analysis cannot answer and "
-    "which almost no institution has measured."
+    "Where the divergence does clear it, the condition is specific: strongly saturating "
+    "efficacy and capacity large enough that the ranking is not dominated by a handful "
+    "of near tied students. Whether a real intervention saturates that strongly is an "
+    "empirical question about a particular programme, which this analysis cannot answer "
+    "and which almost no institution has measured."
 )
 w()
 
@@ -347,8 +355,10 @@ stats["gammas"] = GAMMAS
 stats["capacity_pct"] = CAPACITY_PCT
 stats["ate_target"] = ATE_TARGET
 stats["min_cohort"] = MIN_COHORT
-stats["n_bootstrap"] = N_BOOTSTRAP
+stats["n_replications"] = N_REPLICATIONS
 stats["seed"] = SEED
+stats["cohorts"] = {str(k): v for k, v in cohort_list.items()}
+stats["noise_floor"] = {str(D): {f"{p:.2f}": float(v) for p, v in f.items()} for D, f in floors.items()}
 
 (DOCS / "06_allocation.md").write_text("\n".join(lines), encoding="utf-8")
 (CACHE / "allocation_stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
