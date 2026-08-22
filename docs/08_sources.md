@@ -58,17 +58,57 @@ Imported efficacy for tiers two and three. Each entry needs the population, the 
 definition, the effect size with its interval, and the citation. An effect size without a
 matching population is not usable.
 
-### Education, tier one causal anchor
+### Education. Stay the Course
 
 | Field | Value |
 |---|---|
-| Study | OPEN |
-| Participant level data available | OPEN |
-| Licence permits public analysis | OPEN |
+| Study | Increasing Community College Completion Rates among Low-Income Students: Evidence from a Randomized Controlled Trial Evaluation of a Case Management Intervention |
+| Archive | ICPSR 120838, self-published, public record |
+| Investigators | Sullivan, Kearney, Evans, Perry |
+| Design | Multi armed RCT: intensive case management, emergency financial assistance only, control |
+| Setting | Tarrant County College, Fort Worth, Texas, 2013 to 2016 |
+| Outcomes | Continued enrolment and degree attainment, via National Student Clearinghouse |
+| Reported effect | Significant increase in persistence and degree completion for women; full sample estimates imprecise. Associate degree receipt for women reported as tripled, 31.5 percentage points. No difference between the financial assistance only arm and control. Programme cost $4,343 per person. |
+| Participant level data | NOT AVAILABLE |
+| Retrieved | 2026-08-23 |
 
-This is the item that determines whether the project has a tier one rung at all. Until it
-is closed, all three domains sit at tier two and `docs/00_method.md` section 4 overstates
-what the project can claim.
+**Why the data is unavailable.** The ICPSR deposit contains six Stata do files and a
+ReadMe, 180 KB, no data. Per the ReadMe, the underlying records are proprietary
+administrative data held by Tarrant County College's Office of Institutional Research and
+must be requested from them by post. Programme take up data must be separately requested
+from Catholic Charities Fort Worth. Treatment status cannot be recovered from the files
+at all unless the college authorises release of the original student identifier ordering,
+because the Stata code identifies assignment by row position rather than a stored
+variable.
+
+**How it is used.** As an imported average effect and as documented evidence that
+treatment effect heterogeneity exists in case management interventions. It is cited, not
+re-analysed. The specific effect figures above must be verified against the published
+paper before appearing in any public document; they are transcribed from the ICPSR
+abstract.
+
+### Education. Search record for participant level trial data
+
+Run 2026-08-23. Recorded because the absence of an identified tier is a claim the project
+makes, and a claim needs evidence.
+
+| Field | Value |
+|---|---|
+| Archive searched | ICPSR |
+| Queries | "college persistence randomized", "student retention experiment" |
+| Filter | Studies tab, not Data-related publications |
+| Studies returned | 4 and 17 respectively |
+| Qualifying | None |
+
+Failure modes observed: most results matched "retention" in the sense of teacher
+retention or grade retention rather than student persistence; most carried RESTRICTED or
+PARTIALLY RESTRICTED access; the single strong design match, ICPSR 120838, was code only.
+
+The constraint appears structural rather than incidental. Student records are protected,
+so education trials deposit replication code and retain data behind institutional
+agreements. Harvard Dataverse and OSF were not exhausted. If this claim is challenged,
+the honest answer is that the search was bounded at one hour across one archive and two
+query families.
 
 ### Academic medical centers, care coordination
 

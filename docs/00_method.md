@@ -125,36 +125,95 @@ assumed rather than estimated.
 
 ## 4. The evidence ladder
 
-The three domains are not parallel case studies. They are ordered by the quality of
-evidence available for tau, and that ordering is the design.
+Revised 2026-08-23, after the search recorded in `docs/08_sources.md` returned no usable
+participant level randomised education experiment. The original version of this section
+placed education at a tier where treatment effects would be identified from data. That
+tier does not exist for this project and the claim has been withdrawn.
 
-**Tier one. Participant level randomisation.**
-Effect heterogeneity is estimated from data in which assignment to intervention was
-random. tau is identified. This tier establishes whether the divergence exists at all.
+### 4.1 Why there is no identified tier
 
-**Tier two. Population data, imported efficacy.**
-Individual level records exist for a real population, but no randomisation is present.
-An effect size is taken from published trial literature and a heterogeneity structure is
-imposed. tau is assumed, not identified. This tier tests whether the divergence survives
-when only the average effect is known.
+The search covered ICPSR, filtered to studies rather than publications, across two query
+families. Seventeen studies were returned. The closest match by design was ICPSR 120838,
+Stay the Course, a multi armed randomised controlled trial of intensive case management
+at Tarrant County College, Fort Worth, 2013 to 2016. Its deposit contains Stata code and
+a ReadMe. It contains no data. The underlying records are proprietary administrative data
+held by the college's Office of Institutional Research, a second dataset is held by
+Catholic Charities Fort Worth, and treatment status can only be reconstructed if the
+college authorises release of the original student identifier ordering, because the code
+recovers assignment from row order rather than a stored variable.
 
-**Tier three. Constructed population, imported efficacy.**
+That is three institutional approvals, two of them by postal request. It is not
+obtainable by an unaffiliated analyst and it is not obtainable quickly by anyone.
+
+This is not an accident of one archive. Student records are protected, so education
+trials deposit code and retain data behind institutional agreements. The absence is
+structural, and it is the same absence every practitioner faces.
+
+### 4.2 The revised ladder
+
+All three domains import efficacy. None estimates it. What separates them is how much of
+the rest is real.
+
+**Tier one. Real population, effect imported from a randomised trial in a comparable
+setting.**
+Individual level records exist for a real population. The average effect is taken from a
+published trial whose intervention and outcome resemble the one being modelled, and a
+heterogeneity structure is imposed and swept. The population is measured; the effect is
+borrowed; the shape of the effect is assumed.
+
+**Tier two. Real population, effect imported from trials in a less comparable setting.**
+As above, but the trial population differs more from the one being modelled, so the
+imported effect carries more transfer risk. The gap between tier one and tier two is the
+strength of the analogy, not the presence of data.
+
+**Tier three. Constructed population, effect imported.**
 No public individual level data exists. The population is generated from published
-aggregate benchmarks with its structure documented in full. Both the population and the
-effect model are assumptions. This tier tests whether the divergence survives when
-almost nothing is measured.
+aggregate benchmarks with every parameter traceable to a script. Both the population and
+the effect are assumptions.
 
-The ladder exists because tier three is the condition every real institution is in. No
-university has a randomised trial of its own advising programme. No foundation has one
-for its own donor base. A finding that only holds at tier one is a finding no
-practitioner can use. The project's central result is therefore not the tier one
-estimate. It is the answer to how far down the ladder the conclusion survives.
+### 4.3 What the ladder now tests
+
+The original framing asked how far down the ladder a finding established at the top
+survives. With no identified tier, that question cannot be asked and is withdrawn.
+
+The question the revised ladder answers is narrower and, on reflection, closer to what
+matters. Every institution allocating a scarce intervention is working with a measured
+population and a borrowed effect. None has a trial of its own programme on its own
+people. The project therefore asks:
+
+> Given that efficacy must be assumed, how much does the allocation decision depend on
+> which assumption is made, and how much does that dependence change as the rest of the
+> evidence degrades?
+
+This is answerable with what is available, and it describes the real decision. A finding
+that required an identified treatment effect would have been a finding no practitioner
+could act on.
+
+### 4.4 What this costs
+
+Stated plainly rather than buried.
+
+The project cannot say that effect ranking beats risk ranking. It can say that the two
+rankings diverge, that the divergence exceeds the instability of the ranking itself over
+a stated region of the assumption space, and that the choice between them turns on a
+parameter nobody has measured.
+
+It cannot estimate how effects vary across people. The efficacy family used is a function
+of baseline risk alone, which bounds the divergence attributable to shape and excludes
+covariate driven heterogeneity entirely. Stay the Course reports significant effects for
+women and imprecise estimates for the full sample, which is direct evidence that
+covariate driven heterogeneity exists in exactly this kind of intervention. The project
+cites that and cannot measure it.
+
+Any future access to participant level trial data would upgrade the education domain and
+change what section 7 can falsify. Until then, no result in this repository may be
+described as causal.
 
 ---
 
 ## 5. Domains
 
-### 5.1 Education. Tier one and tier two.
+### 5.1 Education. Tier one.
 
 Operational population: the Open University Learning Analytics Dataset. Roughly thirty
 thousand student registrations with weekly interaction records, demographics and
@@ -163,12 +222,21 @@ assessment results. Withdrawal is directly observed.
 OULAD contains no intervention assignment. It therefore supplies the population, the
 feature structure and the realistic risk model, but cannot supply tau.
 
-The causal anchor is a separate education experiment with participant level random
-assignment, from which heterogeneous treatment effects can be estimated directly. The
-specific source is under verification. See section 8. If no suitable participant level
-experiment can be obtained, the education domain drops to tier two and the project has
-no tier one rung. That outcome must be reported prominently rather than concealed,
-because it changes what the whole project is entitled to claim.
+Efficacy is imported from Stay the Course (ICPSR 120838), a multi armed randomised
+controlled trial of intensive case management at Tarrant County College, 2013 to 2016.
+That trial supplies an average effect for a caseworker assigned to a student, which is
+structurally the intervention this domain models. Its participant level data is not
+obtainable; see section 4.1. The effect is therefore a published number, not an estimate
+produced here.
+
+This places education at tier one because the population is real and individual level and
+the borrowed effect comes from a genuinely comparable intervention. It does not place it
+at any tier where the effect is identified, because no such tier exists in this project.
+
+The transfer risk is stated rather than minimised. Stay the Course is US community
+college; OULAD is UK distance learning. The intervention differs in intensity and the
+outcome definitions are not identical. Any figure derived from the imported effect
+carries that gap, and the sensitivity sweep exists because of it.
 
 Prediction is time sliced. Risk models are fit using only information available at weeks
 four, eight and twelve of a module presentation, so that no feature can encode the
@@ -249,8 +317,8 @@ overlap, because that means the divergence is noise.
 
 The thesis is weakened, but not destroyed, if it holds at tier one and disappears at
 tiers two and three. That result would itself be worth reporting: it would mean the
-correction is only available to institutions that can run experiments, which is a finding
-about who gets to make good decisions.
+divergence is only visible where a comparable trial exists to borrow from, which is a
+finding about which institutions can even ask the question.
 
 ---
 
@@ -259,8 +327,9 @@ about who gets to make good decisions.
 Open items. None of the following may be treated as established until closed. Each
 requires a source and a date recorded in `docs/08_sources.md`.
 
-1. Availability, licence and participant level access for the education experiment
-   intended as the tier one causal anchor.
+1. CLOSED 2026-08-23. No participant level randomised education experiment is
+   obtainable. See section 4.1 and `docs/08_sources.md`. Section 4 was rewritten as a
+   result. Reopen only if institutional access to trial microdata becomes available.
 2. Confirmation that the held MIMIC-IV credential covers the specific tables required,
    and that the applicable data use agreement is signed.
 3. Published effect sizes for care coordination interventions at academic medical
