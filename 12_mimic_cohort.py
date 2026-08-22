@@ -1,0 +1,336 @@
+"""
+12_mimic_cohort.py
+
+Builds the analysis population for the academic medical center domain, three times.
+
+WHY THREE
+=========
+`11_mimic_profile.md` found that 223,452 admissions are a patient's last, 40.93% of the
+data, and only 11,797 of those are resolved by death in hospital. The remaining 211,655
+cannot be classified: MIMIC shifts dates per patient, so there is no shared calendar end
+against which to censor, and a patient who was never readmitted is indistinguishable from
+one whose observation window closed.
+
+Most published readmission work on MIMIC picks one handling of this and does not say so.
+This script builds all three and carries the choice forward as a reported dimension, in
+the same way the education domain carries the efficacy assumption gamma. If the
+allocation conclusion is stable across regimes, that is established rather than assumed.
+If it moves, the movement is the finding.
+
+    Regime A, observed. Non final admissions only. Follow up is genuinely observable.
+             Known bias: excludes every patient with a single admission, who are 55.17%
+             of patients and systematically lower risk. Inflates the readmission rate.
+
+    Regime B, optimistic. All admissions, with unresolved final admissions scored as not
+             readmitted. Known bias: assigns a definite negative to 211,655 admissions
+             whose outcome is unknown. Deflates the rate.
+
+    Regime C, resolved. Non final admissions plus final admissions that ended in death,
+             which are genuine negatives. Cleanest logic, smallest population, still
+             excludes single admission survivors.
+
+A and B bracket the truth. C is the defensible middle.
+
+WINDOW
+======
+`11_mimic_profile.md` found no break at 30 days: the rate rises 6.64 points from 14 to
+30, and 6.44 points from 30 to 60. Thirty days is a reimbursement convention, not a
+property of the data. Two windows are therefore built, 30 and 90, and both carried
+forward.
+
+EXCLUSIONS
+==========
+Applied in order, counted at each step, per regime.
+
+  1. Overlapping admissions. The next admission begins before this one ends. These are
+     transfers or record errors, not readmissions.
+  2. Died during the index admission. Unambiguous: a patient who died cannot be
+     readmitted, so including them adds guaranteed negatives.
+  3. Discharged to hospice. Judgement call, applied. A hospice discharge is a transition
+     to end of life care; a subsequent admission is not a care coordination failure in
+     the sense this project models.
+
+Not excluded, deliberately: elective admissions, transfers to other facilities, and
+discharges against medical advice. Each is arguable. Excluding elective admissions is
+standard in CMS measures but this project models care coordination capacity rather than
+a reimbursement penalty, and a planned admission still consumes panel attention. The
+choice is recorded here so it can be challenged.
+
+Usage:
+    python 12_mimic_cohort.py
+
+Reads:
+    data/raw/mimic/admissions.csv.gz
+    data/raw/mimic/patients.csv.gz
+    data/raw/mimic/services.csv.gz
+
+Writes:
+    data/processed/mimic_cohort.parquet
+    docs/12_mimic_cohort.md
+    cache/mimic_cohort_stats.json
+"""
+
+import hashlib
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+RAW = Path("data/raw/mimic")
+PROC = Path("data/processed")
+DOCS = Path("docs")
+CACHE = Path("cache")
+for p in (PROC, DOCS, CACHE):
+    p.mkdir(parents=True, exist_ok=True)
+
+WINDOWS = [30, 90]
+N_FOLDS = 5
+FOLD_SALT = "marginal-mimic-v1"
+MIN_SERVICE = 5000
+
+stats = {}
+lines = []
+
+
+def w(s=""):
+    lines.append(s)
+    print(s)
+
+
+def assign_fold(subject_id: int) -> int:
+    h = hashlib.sha256(f"{FOLD_SALT}:{subject_id}".encode()).hexdigest()
+    return int(h, 16) % N_FOLDS
+
+
+# ---------------------------------------------------------------------------
+# Load and order
+# ---------------------------------------------------------------------------
+
+adm = pd.read_csv(
+    RAW / "admissions.csv.gz",
+    parse_dates=["admittime", "dischtime", "deathtime"],
+    usecols=[
+        "subject_id", "hadm_id", "admittime", "dischtime", "deathtime",
+        "admission_type", "admission_location", "discharge_location",
+        "insurance", "marital_status", "race", "hospital_expire_flag",
+    ],
+)
+pat = pd.read_csv(RAW / "patients.csv.gz", usecols=["subject_id", "gender", "anchor_age"])
+svc = pd.read_csv(RAW / "services.csv.gz", usecols=["hadm_id", "transfertime", "curr_service"])
+
+df = adm.sort_values(["subject_id", "admittime"]).reset_index(drop=True)
+df["next_admit"] = df.groupby("subject_id")["admittime"].shift(-1)
+df["is_final"] = df["next_admit"].isna()
+df["gap_days"] = (df["next_admit"] - df["dischtime"]).dt.total_seconds() / 86400
+df["los_days"] = (df["dischtime"] - df["admittime"]).dt.total_seconds() / 86400
+df["n_prior"] = df.groupby("subject_id").cumcount()
+
+w("# 12. MIMIC cohort")
+w()
+w("Generated by `12_mimic_cohort.py`. Do not edit by hand.")
+w()
+w("## Why three populations")
+w()
+w(
+    "223,452 admissions are a patient's last and only 11,797 of those are resolved by "
+    "death. The remaining 211,655 cannot be classified, because MIMIC shifts dates per "
+    "patient and there is no shared calendar end to censor against. Rather than choose a "
+    "handling and proceed, this domain carries the choice as a reported dimension."
+)
+w()
+w("| Regime | Definition | Known bias |")
+w("|---|---|---|")
+w("| A observed | Non final admissions only | Excludes single admission patients, who are lower risk. Inflates the rate. |")
+w("| B optimistic | All admissions, unresolved finals scored as not readmitted | Assigns a definite negative to 211,655 unknown outcomes. Deflates the rate. |")
+w("| C resolved | Non final, plus finals ending in death | Cleanest logic, smallest population |")
+w()
+w("A and B bracket the truth. If a conclusion holds under both, censoring does not drive it.")
+w()
+
+# ---------------------------------------------------------------------------
+# Exclusions
+# ---------------------------------------------------------------------------
+
+w("## Exclusions")
+w()
+w("| Step | Reason | Removed | Remaining |")
+w("|---|---|---:|---:|")
+
+n0 = len(df)
+w(f"| 0 | All admissions | | {n0:,} |")
+
+overlap = df["next_admit"].notna() & (df["next_admit"] < df["dischtime"])
+n_ov = int(overlap.sum())
+df = df[~overlap].copy()
+w(f"| 1 | Overlapping admission, transfer or record error | {n_ov:,} | {len(df):,} |")
+
+died = df["hospital_expire_flag"] == 1
+n_died = int(died.sum())
+df_died_final = df[died & df["is_final"]].copy()  # kept for regime C
+df = df[~died].copy()
+w(f"| 2 | Died during index admission | {n_died:,} | {len(df):,} |")
+
+dl = df["discharge_location"].fillna("")
+hospice = dl.str.contains("HOSPICE", case=False, na=False)
+n_hosp = int(hospice.sum())
+df = df[~hospice].copy()
+w(f"| 3 | Discharged to hospice | {n_hosp:,} | {len(df):,} |")
+w()
+
+stats["exclusions"] = {
+    "start": n0,
+    "overlapping": n_ov,
+    "died_index": n_died,
+    "hospice": n_hosp,
+    "after_exclusions": len(df),
+}
+
+w(
+    "Elective admissions, transfers to other facilities and discharges against medical "
+    "advice are NOT excluded. Each is arguable. CMS readmission measures exclude planned "
+    "admissions, but this project models care coordination capacity rather than a "
+    "reimbursement penalty, and a planned admission still consumes panel attention."
+)
+w()
+
+# ---------------------------------------------------------------------------
+# Attach covariates
+# ---------------------------------------------------------------------------
+
+first_svc = (
+    svc.sort_values("transfertime").groupby("hadm_id")["curr_service"].first().rename("service")
+)
+df = df.merge(first_svc, left_on="hadm_id", right_index=True, how="left")
+df = df.merge(pat, on="subject_id", how="left", validate="many_to_one")
+
+svc_counts = df["service"].value_counts()
+big = set(svc_counts[svc_counts >= MIN_SERVICE].index)
+df["service_grouped"] = np.where(df["service"].isin(big), df["service"], "OTHER")
+
+df["fold"] = df["subject_id"].map(assign_fold)
+
+# ---------------------------------------------------------------------------
+# Build regimes
+# ---------------------------------------------------------------------------
+
+frames = []
+
+for regime in ("A", "B", "C"):
+    if regime == "A":
+        sub = df[~df["is_final"]].copy()
+    elif regime == "B":
+        sub = df.copy()
+    else:
+        keep_final = df["is_final"] & (df["hadm_id"].isin(df_died_final["hadm_id"]))
+        sub = df[~df["is_final"] | keep_final].copy()
+
+    for wd in WINDOWS:
+        s = sub.copy()
+        s["readmit"] = ((s["gap_days"] >= 0) & (s["gap_days"] <= wd)).astype(int)
+        s["regime"] = regime
+        s["window"] = wd
+        frames.append(s)
+
+cohort = pd.concat(frames, ignore_index=True)
+
+keep = [
+    "subject_id", "hadm_id", "regime", "window", "readmit",
+    "gender", "anchor_age", "admission_type", "admission_location",
+    "discharge_location", "insurance", "marital_status", "race",
+    "service", "service_grouped", "los_days", "n_prior", "is_final", "fold",
+]
+cohort[keep].to_parquet(PROC / "mimic_cohort.parquet", index=False)
+
+# ---------------------------------------------------------------------------
+# Report
+# ---------------------------------------------------------------------------
+
+w("## Readmission rate by regime and window")
+w()
+w("| Regime | Window | Admissions | Readmitted | Rate |")
+w("|---|---:|---:|---:|---:|")
+rates = {}
+for regime in ("A", "B", "C"):
+    for wd in WINDOWS:
+        s = cohort[(cohort["regime"] == regime) & (cohort["window"] == wd)]
+        r = s["readmit"].mean() * 100
+        rates[f"{regime}_{wd}"] = {
+            "n": int(len(s)), "readmitted": int(s["readmit"].sum()), "rate_pct": round(r, 4)
+        }
+        w(f"| {regime} | {wd} | {len(s):,} | {int(s['readmit'].sum()):,} | {r:.2f}% |")
+w()
+
+a30 = rates["A_30"]["rate_pct"]
+b30 = rates["B_30"]["rate_pct"]
+w(
+    f"At 30 days the rate ranges from {b30:.2f}% under regime B to {a30:.2f}% under "
+    f"regime A, a spread of {a30 - b30:.2f} points. That spread is caused entirely by how "
+    "unresolvable outcomes are handled, not by anything clinical. Any single figure "
+    "quoted without its regime is uninterpretable."
+)
+w()
+
+stats["rates"] = rates
+
+w("## Fold assignment")
+w()
+spans = cohort.groupby("subject_id")["fold"].nunique()
+n_span = int((spans > 1).sum())
+w(
+    f"{N_FOLDS} folds, assigned by deterministic hash of `subject_id`. Patients appear "
+    "in multiple admissions, so row level assignment would leak."
+)
+w()
+if n_span:
+    w(f"**FAIL: {n_span:,} patients span more than one fold.**")
+else:
+    w("Check passed: no patient appears in more than one fold.")
+w()
+
+w("| Fold | Admissions (A, 30d) | Patients | Rate |")
+w("|---:|---:|---:|---:|")
+a = cohort[(cohort["regime"] == "A") & (cohort["window"] == 30)]
+ft = a.groupby("fold").agg(n=("readmit", "size"), p=("subject_id", "nunique"), r=("readmit", "mean"))
+for f, row in ft.iterrows():
+    w(f"| {f} | {int(row['n']):,} | {int(row['p']):,} | {row['r'] * 100:.2f}% |")
+w()
+
+stats["folds"] = {
+    "n_folds": N_FOLDS, "salt": FOLD_SALT, "patients_spanning": n_span,
+}
+
+w("## Service groups for the transfer test")
+w()
+w(
+    f"Services with fewer than {MIN_SERVICE:,} admissions are pooled as OTHER. "
+    "MED dominates the population, so leave one service out will be unbalanced: holding "
+    "out MED means training on half the data, and holding out any other means training on "
+    "a population that is half MED. Both directions are reported in the validation step."
+)
+w()
+w("| Service | Admissions (A, 30d) | Share |")
+w("|---|---:|---:|")
+sg = a["service_grouped"].value_counts()
+for k, v in sg.items():
+    w(f"| {k} | {v:,} | {v / len(a) * 100:.2f}% |")
+w()
+
+stats["service_groups"] = {str(k): int(v) for k, v in sg.items()}
+
+w("## What carries forward")
+w()
+w(
+    "Every downstream table in this domain is indexed by regime and window as well as by "
+    "the quantities the education domain used. A result reported without both is not a "
+    "result."
+)
+w()
+
+(DOCS / "12_mimic_cohort.md").write_text("\n".join(lines), encoding="utf-8")
+(CACHE / "mimic_cohort_stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
+
+print()
+print(f"Wrote data/processed/mimic_cohort.parquet  ({len(cohort):,} rows)")
+print("Wrote docs/12_mimic_cohort.md")
+print("Wrote cache/mimic_cohort_stats.json")
