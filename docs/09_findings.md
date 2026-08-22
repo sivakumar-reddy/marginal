@@ -51,7 +51,7 @@ A single clickstream feature barely improves on predicting the base rate: Brier 
 
 ## Finding 3. Where effect ranking diverges from risk ranking
 
-Divergence counts only where the two rankings disagree by more than two independent risk models disagree with each other. At day 0 that floor is 1%: 0.26, 2%: 0.28, 5%: 0.35, 10%: 0.42, 20%: 0.51.
+Divergence counts only where the two rankings disagree by more than two independent risk models disagree with each other. At day 0 that floor is 1%: 0.23, 2%: 0.26, 5%: 0.35, 10%: 0.42, 20%: 0.51.
 
 Day 0, percentage of achievable outcomes averted that risk ranking forgoes.
 Cells that did not clear the noise floor are omitted.
@@ -59,15 +59,51 @@ Cells that did not clear the noise floor are omitted.
 | gamma | peak risk | 1% | 2% | 5% | 10% | 20% |
 |---:|---:|---:|---:|---:|---:|---:|
 | 0.0 | 1.00 |  |  |  |  |  |
-| 0.5 | 0.67 | 15.0% |  |  |  |  |
-| 1.0 | 0.50 | 41.0% | 31.0% | 18.1% | 10.1% |  |
-| 1.5 | 0.40 | 61.8% | 51.6% | 36.1% | 23.9% | 13.0% |
-| 2.0 | 0.33 | 75.8% | 67.2% | 52.2% | 38.4% | 24.0% |
-| 3.0 | 0.25 | 90.4% | 85.3% | 74.7% | 62.1% | 45.7% |
+| 0.5 | 0.67 | 14.3% |  |  |  |  |
+| 1.0 | 0.50 | 40.3% | 30.3% | 17.8% | 10.0% |  |
+| 1.5 | 0.40 | 61.5% | 51.2% | 35.9% | 24.1% | 13.1% |
+| 2.0 | 0.33 | 75.7% | 67.0% | 52.1% | 38.7% | 24.3% |
+| 3.0 | 0.25 | 90.5% | 85.3% | 74.7% | 62.6% | 46.0% |
 
 At gamma of 1.5 or above and 1% capacity, mean overlap between the two rankings is 0.00. The lists are disjoint.
 
 **Condition.** The result holds from gamma of 1.0 upward, meaning peak intervention effect at or below 50% baseline risk. Whether a particular programme saturates that strongly is an empirical question about that programme. Almost no institution has measured it, which is the practical finding underneath the statistical one.
+
+## Finding 4. What effect ranking costs, and who it moves attention away from
+
+Findings 1 to 3 describe when the two rankings differ. This one describes what choosing the second costs. It is reported at the same prominence because presenting the gain without the cost would be advocacy rather than analysis.
+
+### Coverage of students who actually withdrew
+
+Day 0. Share of all eventual withdrawals contacted under each ranking.
+
+| gamma | capacity | Risk ranking | Effect ranking | Change |
+|---:|---:|---:|---:|---:|
+| 1.0 | 5% | 9.8% | 8.2% | -1.6 pts |
+| 1.0 | 10% | 18.2% | 16.1% | -2.1 pts |
+| 2.0 | 5% | 9.8% | 5.4% | -4.3 pts |
+| 2.0 | 10% | 18.2% | 10.9% | -7.3 pts |
+| 3.0 | 5% | 9.8% | 4.2% | -5.5 pts |
+| 3.0 | 10% | 18.2% | 9.1% | -9.1 pts |
+
+At the strongest saturation assumption tested and the largest capacity, effect ranking contacts 9.1% of eventual withdrawals against 18.2% under risk ranking, roughly half as many. Under the efficacy assumption it still averts more outcomes, because the students it drops were assumed unreachable. If that assumption is wrong, this is the size of the error. No experiment has tested it.
+
+### Composition of the selected group
+
+Day 0, gamma 2.0, 10% capacity. Share of each list, against share of the cohort.
+
+| Attribute | Level | Cohort | Risk list | Effect list |
+|---|---|---:|---:|---:|
+| imd_band | 0-10% | 0.101 | 0.200 | 0.130 |
+| imd_band | 10-20 | 0.107 | 0.171 | 0.125 |
+| disability | Y | 0.096 | 0.242 | 0.119 |
+| highest_education | Lower Than A Level | 0.387 | 0.685 | 0.450 |
+
+Risk ranking concentrates attention on the most deprived decile at 0.200 against a cohort share of 0.101, and on students with a declared disability at 0.242 against 0.096. This is not a policy choice. It follows from those groups withdrawing more often.
+
+Effect ranking pulls both back toward the cohort average: 0.130 and 0.119. Under a saturating efficacy assumption it deprioritises exactly the groups that withdraw most, on the grounds that contact would not change their outcome.
+
+**This is the finding that most needs stating before any recommendation.** It is a defensible decision theoretic position: spending a fixed budget where it changes outcomes rather than where outcomes are worst. It is also a decision to contact fewer deprived and disabled students, justified by an efficacy assumption that has not been measured in this population or any other. Whether that trade is acceptable is not a question this analysis can answer, and it should not be presented as though the arithmetic settles it.
 
 ## Corrections made during the analysis
 
@@ -81,5 +117,6 @@ Two errors were found and fixed after producing results. Both are recorded becau
 
 - No participant level randomised education experiment has been obtained. Until one is, this domain sits at tier two of the evidence ladder and the project has no tier one rung.
 - Leave one cohort out was run on modules only, not on presentations within modules.
-- No analysis of who is reallocated away from under effect ranking. Moving attention off the highest risk students has distributional consequences that deserve their own treatment.
-- Sources and licence terms are not yet recorded in `docs/08_sources.md`.
+- Scripts 06 and 07 draw from a shared random generator, so their figures move slightly between runs. Nothing from those scripts should be quoted in a public document until the seeding is made deterministic per replication.
+- `docs/08_sources.md` exists but most entries are marked OPEN, including the OULAD licence text and every published effect size the other two domains will import.
+- No leave one presentation out test within modules, only leave one module out.

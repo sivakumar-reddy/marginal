@@ -47,7 +47,10 @@ risk = load("risk_stats.json")["results"]
 val = load("cohort_validation_stats.json")["results"]
 stab = load("stability_stats.json")["results"]
 alloc = load("allocation_stats.json")
+dist = load("distribution_stats.json")
 curves = pd.read_parquet(PROC / "allocation_curves.parquet")
+dist_summary = pd.DataFrame(dist["summary"])
+dist_comp = pd.DataFrame(dist["composition"])
 
 lines = []
 
@@ -260,6 +263,98 @@ w()
 # Corrections
 # ---------------------------------------------------------------------------
 
+w("## Finding 4. What effect ranking costs, and who it moves attention away from")
+w()
+w(
+    "Findings 1 to 3 describe when the two rankings differ. This one describes what "
+    "choosing the second costs. It is reported at the same prominence because presenting "
+    "the gain without the cost would be advocacy rather than analysis."
+)
+w()
+
+d0 = dist_summary[dist_summary["day"] == 0]
+
+w("### Coverage of students who actually withdrew")
+w()
+w("Day 0. Share of all eventual withdrawals contacted under each ranking.")
+w()
+w("| gamma | capacity | Risk ranking | Effect ranking | Change |")
+w("|---:|---:|---:|---:|---:|")
+for g in sorted(d0["gamma"].unique()):
+    for c in sorted(d0["capacity_pct"].unique()):
+        s = d0[(d0["gamma"] == g) & (d0["capacity_pct"] == c)]
+        cr = s["withdrew_covered_risk"].sum() / s["withdrew_total"].sum() * 100
+        ce = s["withdrew_covered_effect"].sum() / s["withdrew_total"].sum() * 100
+        w(f"| {g:.1f} | {c:.0%} | {cr:.1f}% | {ce:.1f}% | {ce - cr:+.1f} pts |")
+w()
+
+worst = d0[(d0["gamma"] == d0["gamma"].max()) & (d0["capacity_pct"] == d0["capacity_pct"].max())]
+cr = worst["withdrew_covered_risk"].sum() / worst["withdrew_total"].sum() * 100
+ce = worst["withdrew_covered_effect"].sum() / worst["withdrew_total"].sum() * 100
+w(
+    f"At the strongest saturation assumption tested and the largest capacity, effect "
+    f"ranking contacts {ce:.1f}% of eventual withdrawals against {cr:.1f}% under risk "
+    f"ranking, roughly half as many. Under the efficacy assumption it still averts more "
+    "outcomes, because the students it drops were assumed unreachable. If that assumption "
+    "is wrong, this is the size of the error. No experiment has tested it."
+)
+w()
+
+w("### Composition of the selected group")
+w()
+comp0 = dist_comp[
+    (dist_comp["day"] == 0)
+    & (dist_comp["gamma"] == 2.0)
+    & (dist_comp["capacity_pct"] == 0.10)
+]
+
+w("Day 0, gamma 2.0, 10% capacity. Share of each list, against share of the cohort.")
+w()
+w("| Attribute | Level | Cohort | Risk list | Effect list |")
+w("|---|---|---:|---:|---:|")
+highlight = [
+    ("imd_band", "0-10%"),
+    ("imd_band", "10-20"),
+    ("disability", "Y"),
+    ("highest_education", "Lower Than A Level"),
+]
+for attr, level in highlight:
+    s = comp0[(comp0["attribute"] == attr) & (comp0["level"] == level)]
+    if len(s):
+        w(
+            f"| {attr} | {level} | {s['share_cohort'].mean():.3f} | "
+            f"{s['share_risklist'].mean():.3f} | {s['share_effectlist'].mean():.3f} |"
+        )
+w()
+
+imd = comp0[(comp0["attribute"] == "imd_band") & (comp0["level"] == "0-10%")]
+dis = comp0[(comp0["attribute"] == "disability") & (comp0["level"] == "Y")]
+w(
+    f"Risk ranking concentrates attention on the most deprived decile at "
+    f"{imd['share_risklist'].mean():.3f} against a cohort share of "
+    f"{imd['share_cohort'].mean():.3f}, and on students with a declared disability at "
+    f"{dis['share_risklist'].mean():.3f} against {dis['share_cohort'].mean():.3f}. This "
+    "is not a policy choice. It follows from those groups withdrawing more often."
+)
+w()
+w(
+    f"Effect ranking pulls both back toward the cohort average: "
+    f"{imd['share_effectlist'].mean():.3f} and {dis['share_effectlist'].mean():.3f}. "
+    "Under a saturating efficacy assumption it deprioritises exactly the groups that "
+    "withdraw most, on the grounds that contact would not change their outcome."
+)
+w()
+w(
+    "**This is the finding that most needs stating before any recommendation.** It is a "
+    "defensible decision theoretic position: spending a fixed budget where it changes "
+    "outcomes rather than where outcomes are worst. It is also a decision to contact "
+    "fewer deprived and disabled students, justified by an efficacy assumption that has "
+    "not been measured in this population or any other. Whether that trade is acceptable "
+    "is not a question this analysis can answer, and it should not be presented as though "
+    "the arithmetic settles it."
+)
+w()
+
 w("## Corrections made during the analysis")
 w()
 w(
@@ -299,11 +394,17 @@ w(
     "- Leave one cohort out was run on modules only, not on presentations within modules."
 )
 w(
-    "- No analysis of who is reallocated away from under effect ranking. Moving attention "
-    "off the highest risk students has distributional consequences that deserve their own "
-    "treatment."
+    "- Scripts 06 and 07 draw from a shared random generator, so their figures move "
+    "slightly between runs. Nothing from those scripts should be quoted in a public "
+    "document until the seeding is made deterministic per replication."
 )
-w("- Sources and licence terms are not yet recorded in `docs/08_sources.md`.")
+w(
+    "- `docs/08_sources.md` exists but most entries are marked OPEN, including the OULAD "
+    "licence text and every published effect size the other two domains will import."
+)
+w(
+    "- No leave one presentation out test within modules, only leave one module out."
+)
 w()
 
 (DOCS / "09_findings.md").write_text("\n".join(lines), encoding="utf-8")

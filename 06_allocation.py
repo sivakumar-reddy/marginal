@@ -70,6 +70,7 @@ Writes:
     data/processed/allocation_curves.parquet
 """
 
+import hashlib
 import json
 import warnings
 from pathlib import Path
@@ -101,7 +102,13 @@ SEED = 20260821
 CATEGORICAL = ["gender", "region", "highest_education", "imd_band", "age_band", "disability"]
 DROP = ["id_student", "fold", "outcome", "code_module", "code_presentation"]
 
-rng = np.random.default_rng(SEED)
+def seed_for(*parts):
+    """Deterministic seed from labels. Independent of loop order, so figures reproduce
+    exactly on rerun and do not shift when a cohort or day is added or removed."""
+    h = hashlib.sha256("|".join(str(p) for p in parts).encode()).digest()
+    return int.from_bytes(h[:8], "big")
+
+
 stats = {}
 lines = []
 rows = []
@@ -202,7 +209,8 @@ for D in DECISION_DAYS:
         X, y = sub[cols], sub["outcome"].to_numpy()
         n = len(sub)
 
-        for _ in range(N_REPLICATIONS):
+        for rep in range(N_REPLICATIONS):
+            rng = np.random.default_rng(seed_for(SEED, D, mp[0], mp[1], rep))
             perm = rng.permutation(n)
             a, b, c = np.array_split(perm, 3)
             yc = y[c]
