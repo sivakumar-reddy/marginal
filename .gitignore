@@ -1,0 +1,13 @@
+﻿data/raw/
+data/processed/
+cache/
+venv/
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+node_modules/
+.next/
+out/
+.DS_Store
+Thumbs.db
