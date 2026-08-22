@@ -14,23 +14,23 @@ Each cohort is split three ways at student level. Model A trains on part A, mode
 
 | Estimator | 1% | 2% | 5% | 10% | 20% | AUC on part C |
 |---|---:|---:|---:|---:|---:|---:|
-| single | 0.04 | 0.09 | 0.17 | 0.26 | 0.39 | 0.630 |
-| bagged | 0.12 | 0.13 | 0.23 | 0.31 | 0.43 | 0.639 |
-| logistic | 0.23 | 0.33 | 0.42 | 0.47 | 0.53 | 0.644 |
-| ceiling | 0.39 | 0.44 | 0.47 | 0.55 | 0.62 | 0.607 |
+| single | 0.05 | 0.11 | 0.16 | 0.27 | 0.36 | 0.621 |
+| bagged | 0.07 | 0.15 | 0.22 | 0.32 | 0.41 | 0.635 |
+| logistic | 0.17 | 0.22 | 0.36 | 0.41 | 0.49 | 0.643 |
+| ceiling | 0.34 | 0.39 | 0.43 | 0.52 | 0.58 | 0.614 |
 
-Top decile predicted risk: median 0.821, interquartile range 0.077.
+Top decile predicted risk: median 0.808, interquartile range 0.094.
 
 ## Day 28, cohort CCC 2014J, N = 2,023, evaluation part = 674
 
 | Estimator | 1% | 2% | 5% | 10% | 20% | AUC on part C |
 |---|---:|---:|---:|---:|---:|---:|
-| single | 0.11 | 0.13 | 0.23 | 0.31 | 0.46 | 0.677 |
-| bagged | 0.09 | 0.17 | 0.27 | 0.37 | 0.51 | 0.693 |
-| logistic | 0.39 | 0.40 | 0.43 | 0.51 | 0.59 | 0.695 |
-| ceiling | 0.27 | 0.42 | 0.51 | 0.59 | 0.65 | 0.662 |
+| single | 0.04 | 0.12 | 0.22 | 0.33 | 0.47 | 0.674 |
+| bagged | 0.11 | 0.15 | 0.26 | 0.39 | 0.53 | 0.685 |
+| logistic | 0.36 | 0.36 | 0.38 | 0.47 | 0.58 | 0.695 |
+| ceiling | 0.16 | 0.31 | 0.46 | 0.59 | 0.67 | 0.665 |
 
-Top decile predicted risk: median 0.837, interquartile range 0.104.
+Top decile predicted risk: median 0.836, interquartile range 0.104.
 
 ## How to read this
 

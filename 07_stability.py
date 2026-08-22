@@ -52,6 +52,7 @@ Writes:
     cache/stability_stats.json
 """
 
+import hashlib
 import json
 import warnings
 from pathlib import Path
@@ -83,7 +84,13 @@ SEED = 20260821
 CATEGORICAL = ["gender", "region", "highest_education", "imd_band", "age_band", "disability"]
 DROP = ["id_student", "fold", "outcome", "code_module", "code_presentation"]
 
-rng = np.random.default_rng(SEED)
+def seed_for(*parts):
+    """Deterministic seed from labels. Independent of loop order, so figures reproduce
+    exactly on rerun and do not shift when a day or cohort is added or removed."""
+    h = hashlib.sha256("|".join(str(p) for p in parts).encode()).digest()
+    return int.from_bytes(h[:8], "big")
+
+
 stats = {}
 lines = []
 
@@ -119,11 +126,11 @@ def hgb(Xtr, ytr, Xte, mask, seed):
     return clf.predict_proba(Xte)[:, 1]
 
 
-def hgb_bagged(Xtr, ytr, Xte, mask, seed, bag):
+def hgb_bagged(Xtr, ytr, Xte, mask, seed, bag, gen):
     n = len(Xtr)
     out = np.zeros(len(Xte))
     for b in range(bag):
-        idx = rng.integers(0, n, n)
+        idx = gen.integers(0, n, n)
         out += hgb(Xtr.iloc[idx], ytr[idx], Xte, mask, seed + b)
     return out / bag
 
@@ -189,10 +196,11 @@ for D in DAYS:
     per = {m: {f"{p:.2f}": [] for p in CAPACITY_PCT} for m in methods}
     aucs = {m: [] for m in methods}
 
-    for _ in range(N_REPLICATIONS):
+    for rep in range(N_REPLICATIONS):
+        rng = np.random.default_rng(seed_for(SEED, D, mp[0], mp[1], rep))
         perm = rng.permutation(n)
         a, b, c = np.array_split(perm, 3)
-        s = int(rng.integers(1e6))
+        s = seed_for(SEED, D, mp[0], mp[1], rep, "model") % (2**31)
 
         preds = {
             "single": (
@@ -200,8 +208,8 @@ for D in DAYS:
                 hgb(Xe.iloc[b], y[b], Xe.iloc[c], mask, s + 1),
             ),
             "bagged": (
-                hgb_bagged(Xe.iloc[a], y[a], Xe.iloc[c], mask, s, BAG_SIZE),
-                hgb_bagged(Xe.iloc[b], y[b], Xe.iloc[c], mask, s + 500, BAG_SIZE),
+                hgb_bagged(Xe.iloc[a], y[a], Xe.iloc[c], mask, s, BAG_SIZE, rng),
+                hgb_bagged(Xe.iloc[b], y[b], Xe.iloc[c], mask, s + 500, BAG_SIZE, rng),
             ),
             "logistic": (
                 logit(X.iloc[a], y[a], X.iloc[c], cats, nums),
@@ -221,7 +229,9 @@ for D in DAYS:
                 k = max(1, int(round(p * len(c))))
                 per[m][f"{p:.2f}"].append((topk(pa, k) & topk(pb, k)).sum() / k)
 
-    full = hgb_bagged(Xe, y, Xe, mask, SEED, 5)
+    full = hgb_bagged(
+        Xe, y, Xe, mask, SEED, 5, np.random.default_rng(seed_for(SEED, D, "spread"))
+    )
     top = np.sort(full)[::-1][: max(1, int(0.10 * n))]
 
     results[str(D)] = {
