@@ -111,7 +111,8 @@ SEED = 20260823
 N_FOLDS = 5
 HEADLINE_CAPACITY = 0.03
 
-GROUND_TRUTH = ["group", "y0", "y1", "tau", "p0", "p1"]
+GROUND_TRUTH = ["group", "y0", "y1", "tau", "p0", "p1",
+                "u_draw", "latent_capacity", "latent_affinity"]
 OUTCOME_DERIVED = ["gift_amount", "is_major_gift"]
 OUTCOME, TREATMENT, ID = "gave", "visited", "prospect_id"
 CATEGORICAL = ["region", "grad_decade"]

@@ -17,6 +17,8 @@ MIMIC contains no randomised intervention. Absolute risk reduction as a function
 
 E1 is the null case. Under proportional benefit the effect ranking is a monotone transform of the risk ranking, so the two lists are identical by construction. Any divergence reported for E1 is a bug in this script, not a finding.
 
+**E4 is not identified and its Jaccard column must not be read as divergence.** Benefit saturates at the ceiling for every patient above the threshold risk, so a large share of the population shares one benefit value and the effect ranking is choosing arbitrarily among them. The tie sizes are reported below. The shortfall column for E4 remains meaningful: it says any selection from the tied pool averts the same total. E4 is retained for that reason and for no other.
+
 ## Pre registered reading
 
 | Quantity | Material if |
@@ -29,6 +31,29 @@ E1 is the null case. Under proportional benefit the effect ranking is a monotone
 E1 must show Jaccard 1.000 everywhere. If it does not, the divergence reported below is an artifact.
 
 Cells where E1 diverges: **0**
+
+## Identification check
+
+An efficacy model is identified only if the effect ranking it implies is unique. Where many patients share one benefit value, the selection among them is decided by row order rather than by benefit, and the resulting overlap statistic measures the sort implementation.
+
+Largest tied group inside the selected slice, `pooled_recal`, 10% capacity.
+
+| Point | Regime | Window | k | E1 | E2 | E3 | E4 | E4 tied in population |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| at_admission | A | 30 | 32,155 | 8 | 8 | 77 | 32,155 | 303,645 |
+| at_admission | A | 90 | 32,155 | 3 | 17 | 48 | 32,155 | 320,968 |
+| at_admission | B | 30 | 52,880 | 5 | 5 | 18 | 52,880 | 203,336 |
+| at_admission | B | 90 | 52,880 | 5 | 5 | 20 | 52,880 | 418,505 |
+| at_admission | C | 30 | 33,332 | 8 | 8 | 83 | 33,332 | 309,974 |
+| at_admission | C | 90 | 33,332 | 3 | 16 | 48 | 33,332 | 331,036 |
+| at_discharge | A | 30 | 32,155 | 1 | 1 | 2 | 32,155 | 296,153 |
+| at_discharge | A | 90 | 32,155 | 1 | 2 | 2 | 32,155 | 320,453 |
+| at_discharge | B | 30 | 52,880 | 1 | 2 | 2 | 52,880 | 201,016 |
+| at_discharge | B | 90 | 52,880 | 1 | 2 | 3 | 52,880 | 405,906 |
+| at_discharge | C | 30 | 33,332 | 1 | 1 | 2 | 33,332 | 296,251 |
+| at_discharge | C | 90 | 33,332 | 1 | 2 | 2 | 33,332 | 320,692 |
+
+A tied group approaching k means the effect ranking under that model is arbitrary. Read the E4 Jaccard column in the next section in that light, and read E1, E2 and E3 as identified only where their tie counts are small.
 
 ## Divergence at the 10% capacity, `pooled_recal`
 
