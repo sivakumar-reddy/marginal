@@ -142,6 +142,8 @@ export const COPY = {
 };
 
 export const fmt = {
+  // An em dash means the number is genuinely undefined, most often a statistic over
+  // an empty set. It is never a stand-in for a value that failed to load.
   pct: (x, d = 1) => x == null || isNaN(x) ? "—" : (x * 100).toFixed(d) + "%",
   signed: (x, d = 0) => x == null || isNaN(x) ? "—" : (x > 0 ? "+" : "") + x.toFixed(d),
   int: x => x == null || isNaN(x) ? "—" : Math.round(x).toLocaleString(),

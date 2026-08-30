@@ -78,7 +78,12 @@ def clean(o, path="", found=None):
     `json.dumps` emits bare `NaN`, which is not valid JSON, and a browser rejects the
     entire file rather than the offending value. Several analysis scripts legitimately
     cache NaN, so the conversion happens here at the boundary rather than in the science.
-    Every substitution is recorded so a silently missing number stays visible.
+
+    Most of these are not failures. A mean over an empty set is undefined, and that is
+    the honest answer when a cell has nobody in it, for instance where two rankings
+    select exactly the same people so nobody is dropped or added. Substituting zero
+    there would read as "the dropped students had no risk" rather than "there were no
+    dropped students". Every substitution is recorded so the distinction stays visible.
     """
     if found is None:
         found = []
@@ -437,8 +442,9 @@ nonfinite = []
 payload = clean(payload, found=nonfinite)
 if nonfinite:
     gaps.append(
-        f"{len(nonfinite)} non finite value(s) replaced with null, first at "
-        f"`{nonfinite[0]}`"
+        f"{len(nonfinite)} undefined value(s) written as null, first at "
+        f"`{nonfinite[0]}`. An undefined value is usually a statistic over an empty "
+        "set, not a failure."
     )
     payload["_gaps"] = gaps
     payload["_nonfinite"] = nonfinite[:40]
@@ -490,7 +496,7 @@ w("- The frontend performs no scientific computation.")
 w("- Every displayed number originates in a cache file written by a numbered script.")
 w("- No scientific value is hard coded in the site.")
 w("- Missing values are recorded as gaps, never substituted.")
-w("- Non finite values become null and are counted, never silently dropped.")
+w("- Undefined values, such as an average over nobody, are written as null and counted.")
 w("- Simulated domains carry their source status into the page, not a footnote.")
 w()
 

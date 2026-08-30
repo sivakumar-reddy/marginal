@@ -184,8 +184,11 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--harm);outline-offse
 .panel-meta{display:flex;justify-content:space-between;gap:8px;margin-top:10px;
   font-size:.74rem;color:var(--dim);font-variant-numeric:tabular-nums}
 .panel-meta b{font-family:var(--mono);font-weight:500;color:var(--text)}
-.panel[data-benchmark=true]{padding:12px;margin:-12px;background:var(--surface-2);
-  outline:1px solid var(--rule-strong)}
+/* The benchmark panel sits raised. Padding it without a negative margin keeps it
+   inside its grid column; the earlier negative margin pushed it past the edge. */
+.panel[data-benchmark=true]{padding:12px;background:var(--surface-2);
+  outline:1px solid var(--rule-strong);outline-offset:-1px}
+.panel[data-benchmark=true] canvas{margin-top:10px}
 .badge{
   font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
   padding:3px 6px;border:1px solid currentColor;white-space:nowrap;color:var(--dim);
