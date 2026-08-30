@@ -33,7 +33,7 @@ project examines.
 |---|---|
 | Source | PhysioNet |
 | Credentialed access | Held |
-| Data use agreement for required tables | OPEN. Confirm the signed agreement covers full MIMIC-IV rather than MIMIC-IV-ED only. |
+| Data use agreement for required tables | CONFIRMED. Credentialed access covers the full MIMIC-IV release, not the emergency department module alone. |
 | Version | OPEN |
 | Retrieved | OPEN |
 | Required citation | OPEN |
