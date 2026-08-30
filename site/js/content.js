@@ -35,10 +35,10 @@ export const EVIDENCE = {
     label: "From the analysis",
     note: "Produced by the model runs on this page. Reproducible from a fixed starting point."
   },
-  context: {
-    label: "Sector context",
-    note: "Published fundraising figures used to check the exercise is realistic. They " +
-          "do not set any number in the simulation."
+  verified: {
+    label: "Published figure",
+    note: "Traced to a named publication. Context for whether the exercise is realistic. " +
+          "None of these sets a number in the simulation."
   },
   illustrative: {
     label: "Chosen, not measured",
@@ -59,12 +59,21 @@ export const FUNDRAISING_EVIDENCE = [
   { k: "illustrative", what: "How many people a visit puts off",
     detail: "Set at 8 in 100 with no external basis, and varied from nobody to 1 in 5. " +
             "This turns out to be the setting the whole comparison depends on." },
-  { k: "context", what: "What a gift officer's list usually looks like",
-    detail: "Published sector material reports around 55 prospects per officer at one " +
-            "large university. This page uses a larger, more generous scenario, and the " +
-            "sector figure is context rather than the setting." },
-  { k: "context", what: "What counts as a major gift",
-    detail: "$25,000 is a convention used at some institutions, not a universal definition." },
+
+  { k: "verified", what: "What published sources say about fundraising",
+    detail: "About 30 in 100 people give when reached by phone, across the sector. At one " +
+            "large university, just over half of major gift asks succeeded. At one " +
+            "foundation, 82 in 100 leadership donors gave again. Three of these describe " +
+            "single institutions, not the sector. None of them says what one visit does " +
+            "to one person, which is the number this page would actually need." },
+  { k: "verified", what: "Where the $25,000 line comes from",
+    detail: "Published profiles describe institutions treating gifts above $25,000 as " +
+            "major. This page uses that figure because those conventions exist, not " +
+            "because any body defines it that way." },
+  { k: "illustrative", what: "How big a gift officer's list is",
+    detail: "125 people per officer, chosen for this exercise. A candidate published " +
+            "figure was reviewed and left out because its source could not be pinned " +
+            "down, so nothing here claims what real portfolios look like." },
   { k: "sourced", what: "Everything on the chart and in the table",
     detail: "Every result shown here came out of the model runs, including which people " +
             "each approach selects and what each one achieved." }

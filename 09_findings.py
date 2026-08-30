@@ -400,11 +400,7 @@ w(
 )
 
 
-w(
-    "- Five sector figures reported from CASE material carry CITATION INCOMPLETE markers. "
-    "They provide context only, no analysis depends on them, and none may appear in a "
-    "public document until the publication, year and page are recorded."
-)
+
 w(
     "- No leave one presentation out test within modules, only leave one module out."
 )
@@ -426,6 +422,13 @@ w(
     "exists, so the advancement domain sweeps that quantity rather than importing one. "
     "Recorded as NONE IDENTIFIED rather than OPEN, because the honest state is that no "
     "such figure exists, not that the search is unfinished."
+)
+w(
+    "- Four external fundraising figures are now verified and recorded in "
+    "`fundraising_external_evidence.md`: a sector conversion rate, two institutional "
+    "results and a threshold convention. All are contextual, none is a causal estimate, "
+    "and none sets a parameter. A fifth candidate, prospects per development officer, "
+    "is excluded because its source was not captured."
 )
 w()
 

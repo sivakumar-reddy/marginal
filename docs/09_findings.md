@@ -118,7 +118,6 @@ Two errors were found and fixed after producing results. Both are recorded becau
 - No participant level randomised education experiment has been obtained. Until one is, this domain sits at tier two of the evidence ladder and the project has no tier one rung.
 - Leave one cohort out was run on modules only, not on presentations within modules.
 - The OULAD licence text and required citation are still marked OPEN in `docs/08_sources.md` and must be recorded before this domain is quoted publicly.
-- Five sector figures reported from CASE material carry CITATION INCOMPLETE markers. They provide context only, no analysis depends on them, and none may appear in a public document until the publication, year and page are recorded.
 - No leave one presentation out test within modules, only leave one module out.
 
 ## Closed
@@ -126,3 +125,4 @@ Two errors were found and fixed after producing results. Both are recorded becau
 - The shared random generator warning applied to version 1 of the allocation script. Version 2 seeds a fresh generator per cohort, decision point and replication, and two consecutive runs reproduce the noise floor to fifteen decimal places. Figures from these scripts are quotable.
 - The MIMIC data use agreement scope. Credentialed access covers the full release, not the emergency department module alone.
 - No published estimate of the individual causal effect of a fundraising visit exists, so the advancement domain sweeps that quantity rather than importing one. Recorded as NONE IDENTIFIED rather than OPEN, because the honest state is that no such figure exists, not that the search is unfinished.
+- Four external fundraising figures are now verified and recorded in `fundraising_external_evidence.md`: a sector conversion rate, two institutional results and a threshold convention. All are contextual, none is a causal estimate, and none sets a parameter. A fifth candidate, prospects per development officer, is excluded because its source was not captured.

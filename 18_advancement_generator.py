@@ -101,8 +101,8 @@ SEED = 20260823
 
 PARAMS = {
     "n_prospects": 50_000,
-    # 125 is an illustrative high capacity scenario, not a benchmark. Portfolio size
-    # varies substantially by institution and by what counts as a prospect.
+    # 125 is a chosen scenario, not a benchmark. No verified figure describes what
+    # portfolio sizes institutions actually carry, so none is claimed.
     "portfolio_size": 125,
     "n_officers": 12,
 
@@ -131,7 +131,8 @@ PARAMS = {
 
     "gift_lognormal_mu": 7.4,
     "gift_lognormal_sigma": 1.5,
-    # a convention used at some institutions, not a universal definition
+    # a chosen threshold, informed by CASE reported institutional conventions where
+    # institutions treat gifts above this level as major. Not a universal definition.
     "major_gift_threshold": 25_000,
 
     "historical_visit_rate": 0.06,
@@ -143,10 +144,11 @@ PARAMS = {
 }
 
 PARAM_SOURCE_STATUS = (
-    "ILLUSTRATIVE. No published sector figure identifies any causal quantity here. "
-    "Portfolio size is one scenario among many; sector material reports smaller lists "
-    "at some institutions. Harm prevalence and effect magnitude are swept rather than "
-    "asserted. See the sources register, Advancement, Category B."
+    "ILLUSTRATIVE. No published estimate identifies any causal quantity here, so effect "
+    "magnitude, harm severity and harm prevalence are swept rather than set. Verified "
+    "external evidence for this domain is contextual only and is recorded in "
+    "`fundraising_external_evidence.md`; none of it sets a parameter below. Portfolio "
+    "size is a chosen scenario."
 )
 
 GROUPS = ["sure_thing", "persuadable", "lost_cause", "do_not_disturb"]
