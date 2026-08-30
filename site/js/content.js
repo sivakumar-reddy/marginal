@@ -27,6 +27,49 @@ export const HOSPITAL_LISTS = [
     short: "accurate" }
 ];
 
+// The fundraising chapter has to be readable as two kinds of thing at once: results
+// the analysis produced, and settings that were chosen because no published figure
+// pins them down. A reader should never have to guess which is which.
+export const EVIDENCE = {
+  sourced: {
+    label: "From the analysis",
+    note: "Produced by the model runs on this page. Reproducible from a fixed starting point."
+  },
+  context: {
+    label: "Sector context",
+    note: "Published fundraising figures used to check the exercise is realistic. They " +
+          "do not set any number in the simulation."
+  },
+  illustrative: {
+    label: "Chosen, not measured",
+    note: "No published figure identifies this, so it is varied across a wide range " +
+          "rather than asserted. The conclusion is reported against the range."
+  }
+};
+
+export const FUNDRAISING_EVIDENCE = [
+  { k: "illustrative", what: "How many people there are, and how many can be reached",
+    detail: "50,000 people and room for 1,500. Portfolio sizes vary widely by institution " +
+            "and by what counts as a prospect, so this is one scenario among many. Capacity " +
+            "is varied from 1 to 20 percent throughout." },
+  { k: "illustrative", what: "How much a visit changes anyone",
+    detail: "No published study identifies how much one visit changes one person's decision. " +
+            "It is varied from nothing to twice the baseline, and the finding is reported " +
+            "across that whole range." },
+  { k: "illustrative", what: "How many people a visit puts off",
+    detail: "Set at 8 in 100 with no external basis, and varied from nobody to 1 in 5. " +
+            "This turns out to be the setting the whole comparison depends on." },
+  { k: "context", what: "What a gift officer's list usually looks like",
+    detail: "Published sector material reports around 55 prospects per officer at one " +
+            "large university. This page uses a larger, more generous scenario, and the " +
+            "sector figure is context rather than the setting." },
+  { k: "context", what: "What counts as a major gift",
+    detail: "$25,000 is a convention used at some institutions, not a universal definition." },
+  { k: "sourced", what: "Everything on the chart and in the table",
+    detail: "Every result shown here came out of the model runs, including which people " +
+            "each approach selects and what each one achieved." }
+];
+
 export const COPY = {
   brand: "MARGINAL",
   tagline: "Allocation under constraint",
@@ -77,8 +120,10 @@ export const COPY = {
       finding: "Waiting for more information did not produce a better list.",
       body:
         "Advisors could act on day one, or wait twelve weeks and know far more about " +
-        "each student. The extra twelve weeks of information did not help them pick " +
-        "better."
+        "each student. Tested on students the model has never seen, the extra twelve " +
+        "weeks changed accuracy by less than the run to run noise, while more than half " +
+        "the students who eventually left had already gone. One course above shows a " +
+        "larger gain; across all of them it does not survive."
     },
     clinical: {
       n: "02",
@@ -105,7 +150,9 @@ export const COPY = {
       body:
         "This population is invented, so we know what each person would have done both " +
         "with a visit and without one. That makes it the only place where each approach " +
-        "can be graded against the truth."
+        "can be graded against the truth. The catch is that the things a fundraising " +
+        "database actually records explain almost none of the difference between people, " +
+        "so the limit is the information, not the method."
     }
   },
 

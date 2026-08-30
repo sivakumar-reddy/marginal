@@ -26,11 +26,11 @@ Withdrawal varies from 6.93% to 46.38% across the 22 module presentations. Poole
 
 ## Finding 1. A risk ranked priority list is not reproducible
 
-Two risk models trained on different halves of the same cohort, ranking students neither has seen, agree on 22% of their top 1% at day 0 using the most stable estimator tested. A single gradient boosting fit agrees 4% of the time; bagging 15 fits raises that only to 12%.
+Two risk models trained on different halves of the same cohort, ranking students neither has seen, agree on 18% of their top 1% at day 0 using the most stable estimator tested. A single gradient boosting fit agrees 5% of the time; bagging 15 fits raises that only to 8%.
 
-The ceiling matters more than any of those. Two models trained on **identical data**, differing only in random seed, agree on 39% of their top 1%. That is algorithmic nondeterminism alone, and no estimator can beat it.
+The ceiling matters more than any of those. Two models trained on **identical data**, differing only in random seed, agree on 34% of their top 1%. That is algorithmic nondeterminism alone, and no estimator can beat it.
 
-Predicted risk in the top decile has a median of 0.821 and an interquartile range of 0.077. The students at the top are close to tied. Their true risks differ by less than the error in estimating them, so ordering them is arbitrary in a way no method resolves.
+Predicted risk in the top decile has a median of 0.808 and an interquartile range of 0.094. The students at the top are close to tied. Their true risks differ by less than the error in estimating them, so ordering them is arbitrary in a way no method resolves.
 
 **Consequence.** Rerunning the model produces a materially different call list for the same students. This holds regardless of which ranking rule is theoretically correct, and it is prior to the question this project set out to ask.
 
@@ -117,6 +117,12 @@ Two errors were found and fixed after producing results. Both are recorded becau
 
 - No participant level randomised education experiment has been obtained. Until one is, this domain sits at tier two of the evidence ladder and the project has no tier one rung.
 - Leave one cohort out was run on modules only, not on presentations within modules.
-- Scripts 06 and 07 draw from a shared random generator, so their figures move slightly between runs. Nothing from those scripts should be quoted in a public document until the seeding is made deterministic per replication.
-- `docs/08_sources.md` exists but most entries are marked OPEN, including the OULAD licence text and every published effect size the other two domains will import.
+- The OULAD licence text and required citation are still marked OPEN in `docs/08_sources.md` and must be recorded before this domain is quoted publicly.
+- Five sector figures reported from CASE material carry CITATION INCOMPLETE markers. They provide context only, no analysis depends on them, and none may appear in a public document until the publication, year and page are recorded.
 - No leave one presentation out test within modules, only leave one module out.
+
+## Closed
+
+- The shared random generator warning applied to version 1 of the allocation script. Version 2 seeds a fresh generator per cohort, decision point and replication, and two consecutive runs reproduce the noise floor to fifteen decimal places. Figures from these scripts are quotable.
+- The MIMIC data use agreement scope. Credentialed access covers the full release, not the emergency department module alone.
+- No published estimate of the individual causal effect of a fundraising visit exists, so the advancement domain sweeps that quantity rather than importing one. Recorded as NONE IDENTIFIED rather than OPEN, because the honest state is that no such figure exists, not that the search is unfinished.

@@ -41,16 +41,63 @@ project examines.
 ### Advancement domain population
 
 Constructed, not observed. No public individual level donor portfolio dataset is known
-to exist, which is itself an OPEN claim requiring verification. Every parameter of the
-constructed population must be traceable to a published benchmark recorded below.
+to exist, which is itself an OPEN claim requiring verification.
 
-| Parameter | Source | Status |
-|---|---|---|
-| Giving distribution | | OPEN |
-| Donor retention rate | | OPEN |
-| Gift officer portfolio size | | OPEN |
+Parameters fall into two categories and the distinction is load bearing. Sector evidence
+provides context for whether the exercise is realistic. It does not supply the causal
+quantities the simulation needs, and it is not treated as though it does.
 
----
+#### Category A. Sector evidence, contextual only
+
+Reported from CASE and VSE material. **Each entry needs a specific citation before any
+public document quotes it: publication, year, and page or URL. Until that is recorded the
+entry is not usable in a public claim.**
+
+| Figure | Reported value | Citation | Status |
+|---|---|---|---|
+| Prospects per development officer | approximately 55, Vanderbilt example | | CITATION INCOMPLETE |
+| Conversion, phone solicitation example | approximately 30% | | CITATION INCOMPLETE |
+| Major gift solicitation yield | reported examples exist | | CITATION INCOMPLETE |
+| Leadership donor retention | reported examples exist | | CITATION INCOMPLETE |
+| Major gift threshold convention | $25,000 appears as an institutional convention | | CITATION INCOMPLETE |
+| Total funds received, sector | | | OPEN |
+| Alumni, non alumni and individual giving composition | | | OPEN |
+| Donor concentration | | | OPEN |
+
+Notes on use.
+
+The 55 prospects per officer figure is an external reference point, not the simulation
+parameter. The simulation uses 125 per officer, which is an illustrative high capacity
+scenario. Portfolio size varies substantially by institution and by how a prospect is
+defined, so neither number is a universal benchmark.
+
+The $25,000 threshold is a defensible institutional convention, not a universal
+definition. No claim is made that the sector defines all major gifts at that level.
+
+The conversion, yield and retention examples are institutional illustrations. They are
+NOT transplanted into the individual level causal generator. A rate observed at one
+institution under one programme does not identify an individual treatment effect.
+
+Donor concentration evidence is the most useful item here, because it supports the
+premise the whole project rests on: that prioritisation matters when a small share of
+constituents accounts for a large share of giving.
+
+#### Category B. Illustrative parameters, swept not asserted
+
+No sector benchmark identifies these. Each is varied across a wide range so the
+conclusion can be read against the assumption rather than resting on it.
+
+| Parameter | Value used | Swept over | Why it cannot be sourced |
+|---|---|---|---|
+| Prospect pool size | 50,000 | scale only | an institutional choice, not a benchmark |
+| Portfolio capacity | 3%, 1,500 of 50,000 | 1, 3, 5, 10, 20% | depends on institution and prospect definition |
+| Treatment effect magnitude | see generator | 0 to 2.0 | no published estimate identifies the individual causal effect of a visit |
+| Harm severity | see generator | 0 to 2.0 | no published estimate identifies it |
+| Harm prevalence, do not disturb share | 8% | 0, 5, 8, 12, 20% | the 8% was arbitrary and is not presented as established |
+| Group shares, other three | see generator | held in proportion | asserted structure, not measured |
+| Observability of latent traits | baseline | 0 to 1.0 | describes the value of better intelligence in principle |
+| Outcome horizon | within the modelled period | not swept | no defensible sector convention identified |
+| Gift amount distribution | lognormal, see generator | not swept | shape asserted for plausibility only |
 
 ## Published effect sizes
 
@@ -123,6 +170,18 @@ query families.
 
 | Field | Value |
 |---|---|
+| Trials | NONE IDENTIFIED |
+| Population | n/a |
+| Outcome definition | n/a |
+| Effect size and interval | n/a |
+
+No defensible published estimate of the individual causal effect of a personal
+solicitation or officer visit has been identified in CASE or VSE material. The effect
+model is therefore synthetic and its magnitude is swept rather than estimated. This is
+stated as a limitation in the domain's own documentation and on the public page. It is
+not a gap to be filled by borrowing a related statistic.
+
+---|---|
 | Trials | OPEN |
 | Population | OPEN |
 | Outcome definition | OPEN |
@@ -138,7 +197,7 @@ before any public document quotes them.
 | Figure | Used for | Source | Status |
 |---|---|---|---|
 | National completion and retention rates | Framing the scale of the problem | | OPEN |
-| Typical gift officer portfolio size | Framing capacity in advancement | | OPEN |
+| Typical gift officer portfolio size | Framing capacity in advancement | CASE, Vanderbilt example, approximately 55 | CITATION INCOMPLETE |
 | Typical advisor caseload | Framing capacity in education | | OPEN |
 
 ---

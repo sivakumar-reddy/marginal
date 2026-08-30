@@ -393,17 +393,39 @@ w(
 w(
     "- Leave one cohort out was run on modules only, not on presentations within modules."
 )
+
 w(
-    "- Scripts 06 and 07 draw from a shared random generator, so their figures move "
-    "slightly between runs. Nothing from those scripts should be quoted in a public "
-    "document until the seeding is made deterministic per replication."
+    "- The OULAD licence text and required citation are still marked OPEN in "
+    "`docs/08_sources.md` and must be recorded before this domain is quoted publicly."
 )
+
+
 w(
-    "- `docs/08_sources.md` exists but most entries are marked OPEN, including the OULAD "
-    "licence text and every published effect size the other two domains will import."
+    "- Five sector figures reported from CASE material carry CITATION INCOMPLETE markers. "
+    "They provide context only, no analysis depends on them, and none may appear in a "
+    "public document until the publication, year and page are recorded."
 )
 w(
     "- No leave one presentation out test within modules, only leave one module out."
+)
+w()
+w("## Closed")
+w()
+w(
+    "- The shared random generator warning applied to version 1 of the allocation "
+    "script. Version 2 seeds a fresh generator per cohort, decision point and "
+    "replication, and two consecutive runs reproduce the noise floor to fifteen decimal "
+    "places. Figures from these scripts are quotable."
+)
+w(
+    "- The MIMIC data use agreement scope. Credentialed access covers the full release, "
+    "not the emergency department module alone."
+)
+w(
+    "- No published estimate of the individual causal effect of a fundraising visit "
+    "exists, so the advancement domain sweeps that quantity rather than importing one. "
+    "Recorded as NONE IDENTIFIED rather than OPEN, because the honest state is that no "
+    "such figure exists, not that the search is unfinished."
 )
 w()
 

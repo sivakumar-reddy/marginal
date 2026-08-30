@@ -36,6 +36,13 @@ THREE SWEEPS
         distinguishes it from education and healthcare. This isolates how much of the
         result depends on harm existing at all.
 
+    harm prevalence
+        Changes how many people are in the do not disturb group, from nobody to one in
+        five. The 8% used elsewhere in this project is an assumption with no external
+        support, so it is swept rather than asserted. Group membership is reassigned
+        using the same rule and the same underlying people as the population itself,
+        so nothing else about them changes.
+
     observability
         Blends a noisy signal of the latent traits into the feature matrix. At 0 the
         features are exactly what `18` provides and the result is `21`. As it rises, the
@@ -82,6 +89,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+np.seterr(invalid="ignore", divide="ignore")
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
@@ -103,7 +112,16 @@ SWEEPS = {
     "effect_magnitude": [0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
     "harm_severity": [0.0, 0.25, 0.5, 1.0, 1.5, 2.0],
     "observability": [0.0, 0.1, 0.25, 0.5, 0.75, 1.0],
+    "harm_prevalence": [0.0, 0.05, 0.08, 0.12, 0.20],
 }
+
+GROUPS = ["sure_thing", "persuadable", "lost_cause", "do_not_disturb"]
+BASE_SHARES = {"sure_thing": 0.10, "persuadable": 0.16,
+               "lost_cause": 0.66, "do_not_disturb": 0.08}
+BASE_P0 = {"sure_thing": 0.72, "persuadable": 0.06,
+           "lost_cause": 0.02, "do_not_disturb": 0.55}
+BASE_P1 = {"sure_thing": 0.76, "persuadable": 0.34,
+           "lost_cause": 0.03, "do_not_disturb": 0.38}
 
 GROUND_TRUTH = ["group", "y0", "y1", "tau", "p0", "p1",
                 "u_draw", "latent_capacity", "latent_affinity"]
@@ -133,8 +151,29 @@ def lr():
     return LogisticRegression(max_iter=3000, solver="lbfgs")
 
 
+def num(x, fmt="{:.1f}"):
+    """An em dash where a value is undefined. Never a zero standing in for one."""
+    return "\u2014" if x is None or (isinstance(x, float) and not np.isfinite(x)) \
+        else fmt.format(x)
+
+
+def pctf(x, d=1):
+    return "\u2014" if x is None or (isinstance(x, float) and not np.isfinite(x)) \
+        else f"{x * 100:.{d}f}%"
+
+
 def onset(xs, ys, threshold, below):
+    """First crossing, ignoring undefined points.
+
+    A sweep point where the quantity is not identified carries no information about
+    where a threshold is crossed, so it is dropped rather than treated as a value.
+    """
+    xs = np.asarray(xs, dtype=float)
     v = np.asarray(ys, dtype=float)
+    keep = np.isfinite(v)
+    xs, v = xs[keep], v[keep]
+    if len(v) == 0:
+        return None
     hit = v < threshold if below else v > threshold
     if not hit.any():
         return None
@@ -169,6 +208,44 @@ v = df[TREATMENT].to_numpy()
 lat = StandardScaler().fit_transform(
     df[["latent_capacity", "latent_affinity"]].to_numpy()
 )
+raw_capacity = df["latent_capacity"].to_numpy()
+raw_affinity = df["latent_affinity"].to_numpy()
+prior_flag = df["is_prior_donor"].to_numpy()
+
+
+def reassign_groups(dnd_share):
+    """Reassign group membership at a different do not disturb prevalence.
+
+    Uses the same scoring rule and the same underlying people as the population
+    itself, with the remaining share divided among the other three groups in their
+    original proportions. Nothing about any individual changes except which group
+    they fall into.
+    """
+    rest = 1.0 - dnd_share
+    base_rest = sum(BASE_SHARES[g] for g in GROUPS if g != "do_not_disturb")
+    target = np.array([
+        dnd_share if g == "do_not_disturb"
+        else BASE_SHARES[g] / base_rest * rest
+        for g in GROUPS
+    ])
+
+    score = 1.1 * raw_affinity + 0.5 * raw_capacity + 0.4 * prior_flag
+    logits = np.column_stack([
+        1.6 * score - 1.9,
+        0.7 * score - 0.3 * raw_capacity - 0.9,
+        -1.2 * score + 0.9,
+        1.0 * score - 0.8 * raw_affinity - 1.7,
+    ])
+    grng = np.random.default_rng(SEED + 3300)
+    logits = logits + grng.gumbel(0, 1, logits.shape)
+
+    offsets = np.zeros(4)
+    for _ in range(400):
+        pick = np.argmax(logits + offsets, axis=1)
+        obs = np.array([(pick == i).mean() for i in range(4)])
+        offsets += 0.6 * (target - obs) / np.maximum(target, 1e-3)
+    idx = np.argmax(logits + offsets, axis=1)
+    return np.array(GROUPS)[idx]
 
 y0 = (u < p0).astype(int)
 assert (y0 == df["y0"].to_numpy()).all(), "y0 must reconstruct from the retained draw"
@@ -185,14 +262,21 @@ noise_rng = np.random.default_rng(SEED + 4242)
 lat_noise = noise_rng.normal(0, 1, lat.shape)
 
 
-def build_p1(sweep, val):
+def build_outcomes(sweep, val):
+    """Return (p0, p1, group) for one sweep point."""
+    if sweep == "harm_prevalence":
+        g = reassign_groups(val)
+        jitter = np.clip(0.10 * raw_capacity + 0.08 * raw_affinity, -0.35, 0.35)
+        a = np.clip(np.array([BASE_P0[x] for x in g]) * (1 + jitter), 0.001, 0.999)
+        b = np.clip(np.array([BASE_P1[x] for x in g]) * (1 + jitter), 0.001, 0.999)
+        return a, b, g
     if sweep == "effect_magnitude":
-        return np.clip(p0 + val * (p1_base - p0), 0.001, 0.999)
+        return p0, np.clip(p0 + val * (p1_base - p0), 0.001, 0.999), group
     if sweep == "harm_severity":
         gap = p1_base - p0
         scaled = np.where(group == "do_not_disturb", val * gap, gap)
-        return np.clip(p0 + scaled, 0.001, 0.999)
-    return p1_base
+        return p0, np.clip(p0 + scaled, 0.001, 0.999), group
+    return p0, p1_base, group
 
 
 def build_D(sweep, val):
@@ -202,8 +286,8 @@ def build_D(sweep, val):
     return np.hstack([D_base, signal])
 
 
-def evaluate(D, y1, tag):
-    y_obs = np.where(v == 1, y1, y0)
+def evaluate(D, y1, y0_v):
+    y_obs = np.where(v == 1, y1, y0_v)
     D_full = np.hstack([D, v[:, None]])
     D_at0 = np.hstack([D, np.zeros((n, 1))])
 
@@ -224,12 +308,13 @@ results = {}
 for sweep, values in SWEEPS.items():
     rows = []
     for val in values:
-        p1 = build_p1(sweep, val)
+        pa, p1, g = build_outcomes(sweep, val)
+        y0_v = (u < pa).astype(int)
         y1 = (u < p1).astype(int)
-        tau_true = p1 - p0
+        tau_true = p1 - pa
         D = build_D(sweep, val)
 
-        p0h, tauh, _ = evaluate(D, y1, f"{sweep}={val}")
+        p0h, tauh, _ = evaluate(D, y1, y0_v)
 
         sel = {
             "risk": top_k(p0h, k),
@@ -251,7 +336,16 @@ for sweep, values in SWEEPS.items():
             "harm_share": {
                 s: float((tau_true[i] < 0).mean()) for s, i in sel.items()
             },
-            "corr_tauhat_true": float(np.corrcoef(tauh, tau_true)[0, 1]),
+            "corr_tauhat_true": float(np.corrcoef(tauh, tau_true)[0, 1])
+            if tau_true.std() > 0 else float("nan"),
+            "harmed_share_population": float((tau_true < 0).mean()),
+            # where every effect is identical the ranking is not identified and any
+            # overlap statistic is measuring the sort order, not the strategies
+            "identified": bool(tau_true.std() > 1e-12),
+            "max_tie_share": float(
+                np.unique(np.round(tau_true, 12), return_counts=True)[1].max()
+                / len(tau_true)
+            ),
         }
         rows.append(row)
         print(f"  {sweep}={val:<5} effect={inc['effect']:+8.1f} risk={inc['risk']:+8.1f} "
@@ -293,11 +387,12 @@ w(
 w()
 w("## What is swept")
 w()
-w("| Sweep | At the baseline value | Meaning |")
-w("|---|---|---|")
-w("| effect_magnitude | 1.0 reproduces `18` | scales the gap between p1 and p0 for everyone |")
-w("| harm_severity | 1.0 reproduces `18` | scales the negative effect for do not disturb only |")
-w("| observability | 0.0 reproduces `18` | blends a noisy signal of the latent traits into the features |")
+w("| Sweep | At the baseline value | Meaning | Evidence status |")
+w("|---|---|---|---|")
+w("| effect_magnitude | 1.0 | scales how much a visit changes anyone | illustrative, no sector benchmark identifies it |")
+w("| harm_severity | 1.0 | scales the negative effect for the harmed group | illustrative |")
+w("| harm_prevalence | 0.08 | how many people are in the harmed group | illustrative, the 8% has no external support |")
+w("| observability | 0.0 | how much of the latent traits the database can see | illustrative |")
 w()
 w("| Onset | Definition |")
 w("|---|---|")
@@ -305,26 +400,55 @@ w(f"| divergence | risk and effect lists overlap below {JACCARD_MATERIAL:.2f} Ja
 w(f"| dominance | effect exceeds risk by more than {MATERIAL_MARGIN:.0%} |")
 w()
 
+LABELS = {
+    "effect_magnitude": "How much a visit changes anyone",
+    "harm_severity": "How badly over solicitation backfires",
+    "observability": "How much the database can see",
+    "harm_prevalence": "How many people are put off by contact",
+}
+
 for sweep in SWEEPS:
     r = results[sweep]
-    w(f"## {sweep}")
+    w(f"## {LABELS.get(sweep, sweep)}")
     w()
     w("| Value | Risk | Effect | Oracle | Effect over risk | Risk captured | "
-      "Effect captured | Jaccard | Effect harm |")
+      "Effect captured | Overlap | Harmed in population |")
     w("|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in r["rows"]:
+        ident = row.get("identified", True)
+        overlap = "not identified" if not ident else f"{row['jaccard_risk_effect']:.3f}"
         w(
-            f"| {row['value']:.2f} | {row['incremental']['risk']:+.1f} | "
-            f"{row['incremental']['effect']:+.1f} | {row['incremental']['oracle']:+.1f} | "
-            f"{row['effect_over_risk']:+.1%} | "
-            f"{row['effect_captured']['risk']:.1%} | "
-            f"{row['effect_captured']['effect']:.1%} | "
-            f"{row['jaccard_risk_effect']:.3f} | {row['harm_share']['effect']:.1%} |"
+            f"| {row['value']:.2f} "
+            f"| {row['incremental']['risk']:+.1f} "
+            f"| {row['incremental']['effect']:+.1f} "
+            f"| {row['incremental']['oracle']:+.1f} "
+            f"| {pctf(row['effect_over_risk'])} "
+            f"| {pctf(row['effect_captured']['risk'])} "
+            f"| {pctf(row['effect_captured']['effect'])} "
+            f"| {overlap} "
+            f"| {pctf(row.get('harmed_share_population'))} |"
+        )
+    if any(not x.get("identified", True) for x in r["rows"]):
+        w()
+        w(
+            "One row above is marked not identified. Where a visit changes nobody, every "
+            "prospect has the same effect of zero, so there is no ordering to compare and "
+            "any overlap figure would be measuring the sort rather than the strategies."
         )
     w()
     o = r["onsets"]
-    w(f"Divergence onset: **{o['divergence_jaccard'] if o['divergence_jaccard'] is not None else 'never'}**. "
-      f"Dominance onset: **{o['dominance'] if o['dominance'] is not None else 'never'}**.")
+    lo = r["values"][0]
+
+    def phrase(v, what):
+        if v is None:
+            return f"{what} never reached across the range tested"
+        if abs(v - lo) < 1e-9:
+            return f"{what} already true at the lowest value tested, {lo:g}"
+        return f"{what} from {v:.2f}"
+
+    w(phrase(o["divergence_jaccard"], "Lists substantially different:") + ".")
+    w()
+    w(phrase(o["dominance"], "Effect ranking ahead by more than 5%:") + ".")
     w()
 
 w("## Null check")

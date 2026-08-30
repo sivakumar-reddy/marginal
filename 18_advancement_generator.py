@@ -101,6 +101,8 @@ SEED = 20260823
 
 PARAMS = {
     "n_prospects": 50_000,
+    # 125 is an illustrative high capacity scenario, not a benchmark. Portfolio size
+    # varies substantially by institution and by what counts as a prospect.
     "portfolio_size": 125,
     "n_officers": 12,
 
@@ -108,6 +110,7 @@ PARAMS = {
         "sure_thing": 0.10,
         "persuadable": 0.16,
         "lost_cause": 0.66,
+        # arbitrary. Swept from 0 to 20% in the sensitivity step rather than asserted.
         "do_not_disturb": 0.08,
     },
 
@@ -128,6 +131,7 @@ PARAMS = {
 
     "gift_lognormal_mu": 7.4,
     "gift_lognormal_sigma": 1.5,
+    # a convention used at some institutions, not a universal definition
     "major_gift_threshold": 25_000,
 
     "historical_visit_rate": 0.06,
@@ -138,7 +142,12 @@ PARAMS = {
     "prior_donor_share": 0.38,
 }
 
-PARAM_SOURCE_STATUS = "ILLUSTRATIVE. All values open in 08_sources.md section Advancement."
+PARAM_SOURCE_STATUS = (
+    "ILLUSTRATIVE. No published sector figure identifies any causal quantity here. "
+    "Portfolio size is one scenario among many; sector material reports smaller lists "
+    "at some institutions. Harm prevalence and effect magnitude are swept rather than "
+    "asserted. See the sources register, Advancement, Category B."
+)
 
 GROUPS = ["sure_thing", "persuadable", "lost_cause", "do_not_disturb"]
 

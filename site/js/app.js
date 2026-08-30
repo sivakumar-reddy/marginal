@@ -12,7 +12,8 @@
    ========================================================================== */
 
 import { Field, markColours, movementRibbon } from "./viz.js";
-import { STRATEGIES, HOSPITAL_LISTS, COPY, fmt } from "./content.js";
+import { STRATEGIES, HOSPITAL_LISTS, COPY, EVIDENCE, FUNDRAISING_EVIDENCE, fmt }
+  from "./content.js";
 
 const $ = s => document.querySelector(s);
 
@@ -119,7 +120,7 @@ function renderDomainSwitch() {
     $$("#domainSwitch button").forEach(x =>
       x.setAttribute("aria-pressed", String(x.dataset.d === S.domain)));
     renderRail(); wireFocus(); renderPanels(); renderFields({ animate: false });
-    renderReveals(); renderTable();
+    renderReveals(); renderTable(); renderEvidence();
   });
 }
 
@@ -292,8 +293,12 @@ function renderReveals() {
     set("#revealPeople", "Two analysts. Same method. Same students.",
       `Only ${fmt.pct(floor.jaccard)} of the same names.`);
     const last = S.edu.days[String(S.edu.decision_days.at(-1))];
+    // This is one cohort. Across all cohorts, under honest transfer to a course the
+    // model has not seen, the same gain is inside the noise. The page must not imply
+    // the improvement is the finding when the analysis says the opposite.
     set("#revealOutcome",
-      `By week ${Math.round(S.edu.decision_days.at(-1) / 7)} the model sorts better, ` +
+      `In this course the model sorts better by week ${
+        Math.round(S.edu.decision_days.at(-1) / 7)}, ` +
       `${first.auc.toFixed(3)} to ${last.auc.toFixed(3)}.`,
       `The two analysts agree no more than they did on day one.`);
     set("#revealRep", "Sorting by who could be changed instead:",
@@ -425,6 +430,30 @@ function renderTable() {
 }
 
 /* ---------- chapters, method, footer ------------------------------------ */
+
+// The fundraising chapter is the only one whose numbers are invented, so it carries an
+// explicit ledger of what came from the analysis and what was chosen. It renders only
+// for that institution; the other two have no such distinction to draw.
+function renderEvidence() {
+  const host = $("#evidenceLedger");
+  if (!host) return;
+  if (S.domain !== "advancement") { host.innerHTML = ""; return; }
+  const rows = FUNDRAISING_EVIDENCE.map(e => {
+    const meta = EVIDENCE[e.k] || {};
+    return `<tr>
+      <td><span class="badge ${e.k === "illustrative" ? "badge--sim" : ""}">${meta.label}</span></td>
+      <td><strong>${e.what}</strong><br>
+        <span style="color:var(--dim);font-size:.88em">${e.detail}</span></td></tr>`;
+  }).join("");
+  host.innerHTML = `
+    <span class="eyebrow" style="margin-top:var(--step);display:block">What is measured and what is chosen</span>
+    <h3 style="margin-top:12px">This institution is invented. Here is exactly which parts.</h3>
+    <p class="measure" style="color:var(--dim);margin-top:8px">
+      The other two institutions use real records. This one does not, and that is the
+      point: it is the only place where the right answer can be checked. But nothing here
+      describes real donors, and no number below was taken from a published figure.</p>
+    <table style="margin-top:16px"><tbody>${rows}</tbody></table>`;
+}
 
 function renderChapters() {
   const html = Object.entries(S.data.domains).map(([k, dm]) => {
@@ -569,7 +598,7 @@ fetch("data/marginal.json")
     }));
     document.body.classList.remove("loading");
     renderDomainSwitch(); renderRail(); wireFocus(); renderPanels();
-    renderFields({ animate: false }); renderReveals(); renderTable();
+    renderFields({ animate: false }); renderReveals(); renderTable(); renderEvidence();
     renderChapters(); renderMethod(); renderFooter(); wireReveals(); wireNav();
   })
   .catch(e => fail(COPY.states.errorBody +
