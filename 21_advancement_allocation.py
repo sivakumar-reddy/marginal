@@ -407,10 +407,62 @@ stats["results"] = results
 stats["equity_observable"] = equity
 stats["runtime_seconds"] = round(time.time() - t0, 1)
 
+# ---------------------------------------------------------------------------
+# Roster samples for the site. Real selections at every capacity.
+# ---------------------------------------------------------------------------
+
+ROSTER_N = 1200
+gidx = {g: i for i, g in enumerate(GROUPS)}
+prior = df["is_prior_donor"].to_numpy()
+
+rosters = {}
+for cap in CAPACITIES:
+    kk = max(1, int(round(cap * n)))
+    sels = {s_: top_k(scores[s_], kk) for s_ in STRATEGIES}
+    rrng = np.random.default_rng(SEED + 77 + int(cap * 10000))
+    in_any = np.zeros(n, dtype=bool)
+    for s_ in STRATEGIES:
+        in_any[sels[s_]] = True
+    picked = np.flatnonzero(in_any)
+    n_sel = min(len(picked), int(ROSTER_N * 0.75))
+    take = rrng.choice(picked, size=n_sel, replace=False)
+    rest_pool = np.flatnonzero(~in_any)
+    n_rest = min(len(rest_pool), ROSTER_N - n_sel)
+    take = np.concatenate([take, rrng.choice(rest_pool, size=n_rest, replace=False)])
+    take = np.sort(take)
+    flags = {s_: np.isin(take, sels[s_]) for s_ in STRATEGIES}
+    rosters[f"{cap:.2f}"] = {
+        "k": int(kk),
+        "n_sampled": int(len(take)),
+        "selected_in_sample": {s_: int(flags[s_].sum()) for s_ in STRATEGIES},
+        "group": [gidx[g] for g in group[take]],
+        "harmed": [int(x) for x in (tau[take] < 0)],
+        "prior_donor": [int(x) for x in prior[take]],
+        "mask": [
+            int(sum((1 << bp) for bp, s_ in enumerate(STRATEGIES) if flags[s_][j]))
+            for j in range(len(take))
+        ],
+    }
+
+roster = {
+    "n_population": int(n),
+    "groups": GROUPS,
+    "strategies": STRATEGIES,
+    "headline_capacity": HEADLINE_CAPACITY,
+    "note": (
+        "Real selections, sampled per capacity and over-weighted toward selected "
+        "prospects so the field is legible. Synthetic population, so no identity is "
+        "disclosed and none exists. `mask` is a bitfield over `strategies` in order."
+    ),
+    "by_capacity": rosters,
+}
+(CACHE / "advancement_roster_sample.json").write_text(json.dumps(roster), encoding="utf-8")
+
 (DOCS / "21_advancement_allocation.md").write_text("\n".join(lines), encoding="utf-8")
 (CACHE / "advancement_allocation_stats.json").write_text(json.dumps(stats, indent=2), encoding="utf-8")
 
 print()
 print(f"Total runtime: {time.time() - t0:.1f}s")
+print("Wrote cache/advancement_roster_sample.json")
 print("Wrote docs/21_advancement_allocation.md")
 print("Wrote cache/advancement_allocation_stats.json")

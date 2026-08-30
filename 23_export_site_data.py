@@ -52,6 +52,7 @@ Writes:
 """
 
 import json
+import math
 from pathlib import Path
 
 from marginal_engine import SCHEMA_VERSION, Timer, read_cache, run_metadata
@@ -69,6 +70,28 @@ gaps = []
 def w(s=""):
     lines.append(s)
     print(s)
+
+
+def clean(o, path="", found=None):
+    """Replace NaN and Infinity with null.
+
+    `json.dumps` emits bare `NaN`, which is not valid JSON, and a browser rejects the
+    entire file rather than the offending value. Several analysis scripts legitimately
+    cache NaN, so the conversion happens here at the boundary rather than in the science.
+    Every substitution is recorded so a silently missing number stays visible.
+    """
+    if found is None:
+        found = []
+    if isinstance(o, float):
+        if math.isnan(o) or math.isinf(o):
+            found.append(path or "(root)")
+            return None
+        return o
+    if isinstance(o, dict):
+        return {k: clean(v, f"{path}.{k}" if path else k, found) for k, v in o.items()}
+    if isinstance(o, list):
+        return [clean(v, f"{path}[{i}]", found) for i, v in enumerate(o)]
+    return o
 
 
 def need(blob, path, label):
@@ -103,6 +126,7 @@ def advancement():
     stab = read_cache(CACHE / "advancement_stability_stats.json")
     alloc = read_cache(CACHE / "advancement_allocation_stats.json")
     sens = read_cache(CACHE / "advancement_sensitivity_stats.json")
+    roster = read_cache(CACHE / "advancement_roster_sample.json")
     if alloc is None:
         return {"available": False, "reason": "allocation cache absent"}
 
@@ -113,6 +137,7 @@ def advancement():
 
     return {
         "available": True,
+        "interactive": True,
         "id": "advancement",
         "label": "University advancement",
         "outcome": "qualifying gift within the horizon",
@@ -140,6 +165,7 @@ def advancement():
             "headline": head,
             "headline_k": hcell.get("k"),
         },
+        "roster": roster,
         "strategies": hcell.get("strategies"),
         "overlap": hcell.get("overlap"),
         "by_capacity": {
@@ -220,11 +246,13 @@ def clinical():
     sweep = read_cache(CACHE / "mimic_attenuation_stats.json")
     stab = read_cache(CACHE / "mimic_stability_stats.json")
     val = read_cache(CACHE / "mimic_validation_stats.json")
+    roster = read_cache(CACHE / "clinical_roster.json")
     if alloc is None:
         return {"available": False, "reason": "mimic allocation cache absent"}
 
     return {
         "available": True,
+        "interactive": roster is not None,
         "id": "clinical",
         "label": "Academic medical center",
         "outcome": "readmission within the window",
@@ -240,6 +268,7 @@ def clinical():
             "scenarios": [0.01, 0.05, 0.10, 0.20],
             "headline": 0.10,
         },
+        "roster": roster,
         "allocation": need(alloc, "results", "clinical"),
         "equity": need(alloc, "equity", "clinical"),
         "sensitivity": thin_sweep(need(sweep, "results", "clinical"),
@@ -308,6 +337,7 @@ def education():
     stab = read_cache(CACHE / "stability_stats.json")
     alloc = read_cache(CACHE / "allocation_stats.json")
     dist = read_cache(CACHE / "distribution_stats.json")
+    roster = read_cache(CACHE / "education_roster.json")
 
     if alloc is None and cohort is None:
         return {"available": False, "reason": "no education caches found"}
@@ -320,6 +350,7 @@ def education():
         "intervention": "advisor contact",
         "data_status": "observed",
         "ground_truth_available": False,
+        "interactive": roster is not None,
         "population": {
             "n_start": need(cohort, "n_start", "education"),
             "n_analysis": need(cohort, "n_analysis", "education"),
@@ -343,6 +374,7 @@ def education():
             "min_cohort": need(alloc, "min_cohort", "education"),
             "cohorts": need(alloc, "cohorts", "education"),
         },
+        "roster": roster,
         "allocation": passthrough(alloc, "education.allocation"),
         "model": {
             "risk": passthrough(risk, "education.risk"),
@@ -401,9 +433,25 @@ payload = {
     "_gaps": gaps,
 }
 
+nonfinite = []
+payload = clean(payload, found=nonfinite)
+if nonfinite:
+    gaps.append(
+        f"{len(nonfinite)} non finite value(s) replaced with null, first at "
+        f"`{nonfinite[0]}`"
+    )
+    payload["_gaps"] = gaps
+    payload["_nonfinite"] = nonfinite[:40]
+
 SITE.mkdir(parents=True, exist_ok=True)
 out = SITE / "marginal.json"
-out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+# allow_nan=False so an invalid payload fails here rather than in the browser
+# Written compact. Indentation nearly quadrupled the payload for a file no human
+# reads, and the page has to load it before anything appears.
+out.write_text(
+    json.dumps(payload, allow_nan=False, separators=(",", ":")), encoding="utf-8"
+)
+json.loads(out.read_text(encoding="utf-8"))  # parse back; the site must never see bad JSON
 
 w("# 23. Site data export manifest")
 w()
@@ -413,11 +461,12 @@ w(f"Wrote `{out}`, {out.stat().st_size / 1024:.1f} KB, schema {SCHEMA_VERSION}."
 w()
 w("## Domain availability")
 w()
-w("| Domain | Available | Ground truth | Data status | Note |")
-w("|---|---|---|---|---|")
+w("| Domain | Available | Interactive | Ground truth | Data status | Note |")
+w("|---|---|---|---|---|---|")
 for k, d in domains.items():
     w(
         f"| {k} | {'yes' if d.get('available') else 'no'} | "
+        f"{'yes' if d.get('interactive') else 'no'} | "
         f"{'yes' if d.get('ground_truth_available') else 'no'} | "
         f"{d.get('data_status', 'unknown')} | {d.get('reason', '')} |"
     )
@@ -441,6 +490,7 @@ w("- The frontend performs no scientific computation.")
 w("- Every displayed number originates in a cache file written by a numbered script.")
 w("- No scientific value is hard coded in the site.")
 w("- Missing values are recorded as gaps, never substituted.")
+w("- Non finite values become null and are counted, never silently dropped.")
 w("- Simulated domains carry their source status into the page, not a footnote.")
 w()
 

@@ -273,6 +273,15 @@ w(
     "divergence reported for E1 is a bug in this script, not a finding."
 )
 w()
+w(
+    "**E4 is not identified and its Jaccard column must not be read as divergence.** "
+    "Benefit saturates at the ceiling for every patient above the threshold risk, so a "
+    "large share of the population shares one benefit value and the effect ranking is "
+    "choosing arbitrarily among them. The tie sizes are reported below. The shortfall "
+    "column for E4 remains meaningful: it says any selection from the tied pool averts "
+    "the same total. E4 is retained for that reason and for no other."
+)
+w()
 w("## Pre registered reading")
 w()
 w("| Quantity | Material if |")
@@ -335,6 +344,8 @@ for point in POINTS:
                     for e_name, spec in EFFICACY.items():
                         benefit = arr(p, spec)
                         eff_idx = top_k(benefit, k)
+                        r12 = np.round(benefit, 12)
+                        cut_val = r12[eff_idx].min()
                         entry["efficacy"][e_name] = {
                             "jaccard": float(jaccard(risk_idx, eff_idx)),
                             "averted_risk_rank": float(benefit[risk_idx].sum()),
@@ -344,6 +355,10 @@ for point in POINTS:
                             ) if benefit[eff_idx].sum() > 0 else np.nan,
                             "events_risk_rank": int(y[risk_idx].sum()),
                             "events_effect_rank": int(y[eff_idx].sum()),
+                            "max_tie_selected": int(
+                                np.unique(r12[eff_idx], return_counts=True)[1].max()
+                            ),
+                            "tied_at_cut_population": int((r12 == cut_val).sum()),
                         }
                     cfg["capacities"][f"{cap:.2f}"] = entry
                 cell["configs"][cfg_name] = cfg
@@ -411,6 +426,35 @@ bad = [
     if abs(cfg["capacities"][cap_key]["efficacy"]["E1"]["jaccard"] - 1.0) > 1e-9
 ]
 w(f"Cells where E1 diverges: **{len(bad)}**" + (f" ({', '.join(bad[:5])})" if bad else ""))
+w()
+
+w("## Identification check")
+w()
+w(
+    "An efficacy model is identified only if the effect ranking it implies is unique. "
+    "Where many patients share one benefit value, the selection among them is decided by "
+    "row order rather than by benefit, and the resulting overlap statistic measures the "
+    "sort implementation."
+)
+w()
+w(f"Largest tied group inside the selected slice, `{HEADLINE_CONFIG}`, "
+  f"{HEADLINE_CAPACITY:.0%} capacity.")
+w()
+w("| Point | Regime | Window | k | E1 | E2 | E3 | E4 | E4 tied in population |")
+w("|---|---|---:|---:|---:|---:|---:|---:|---:|")
+for r in results.values():
+    c = r["configs"][HEADLINE_CONFIG]["capacities"][cap_key]
+    ties = " | ".join(f"{c['efficacy'][n]['max_tie_selected']:,}" for n in EFFICACY)
+    w(
+        f"| {r['point']} | {r['regime']} | {r['window']} | {c['k']:,} | {ties} | "
+        f"{c['efficacy']['E4']['tied_at_cut_population']:,} |"
+    )
+w()
+w(
+    "A tied group approaching k means the effect ranking under that model is arbitrary. "
+    "Read the E4 Jaccard column in the next section in that light, and read E1, E2 and E3 "
+    "as identified only where their tie counts are small."
+)
 w()
 
 w(f"## Divergence at the {HEADLINE_CAPACITY:.0%} capacity, `{HEADLINE_CONFIG}`")
