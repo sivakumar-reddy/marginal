@@ -256,7 +256,6 @@ for cap in CAPACITIES:
         "n_sampled": int(len(order)),
         "selected_in_sample": {nm: int(np.isin(order, sel[nm]).sum()) for nm in names},
         "mask": masks,
-        "readmitted": [int(v) for v in y_te[order]],
         "risk_vs_effect": float(jac(sel["risk"], sel["effect"])),
         "logit_vs_boosted": float(jac(sel["risk"], sel["boosted"])),
         "logit": family("logit", p_risk),
@@ -295,7 +294,8 @@ roster = {
     "headline_capacity": HEADLINE_CAPACITY,
     "beta": BETA,
     "readmission_rate": float(y_te.mean()),
-    "equity": eq,
+    # Per-patient insurance and discharge codes are not exported. They are restricted
+    # data under the PhysioNet licence, and the page never reads them.
     "note": (
         "One configuration: at discharge, no assumption about censored admissions, thirty "
         "day horizon. Benefit is assumed to fall away at the top of the risk distribution; "

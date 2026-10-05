@@ -19,6 +19,14 @@ function hexToRgb(h) {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+/** Blend two hex colours. Used to sink a colour toward the unselected tone so a
+    mark can say "this rule dropped them" without competing with a live selection. */
+function mix(a, b, t) {
+  const x = hexToRgb(a), y = hexToRgb(b);
+  return "#" + [0, 1, 2]
+    .map(i => Math.round(lerp(x[i], y[i], t)).toString(16).padStart(2, "0")).join("");
+}
+
 /**
  * A dense field of marks, one per sampled person.
  * Transitions are animated so the eye tracks who moved rather than
@@ -33,7 +41,7 @@ export class Field {
     this.state = null;      // per-mark rgb currently painted
     this.target = null;
     this.raf = null;
-    this.bg = opts.bg || css("--ink");
+    this.bg = opts.bg || css("--bg-1") || "#0E1216";
   }
 
   /** colours: array of hex per mark */
@@ -121,18 +129,40 @@ export function movementRibbon(canvas, { entered, left, stayed },
   }
 }
 
+/** The tone a mark takes when the reference list chose them and this rule did not.
+    Exported so a legend can show the colour the field actually paints rather than
+    an approximation of it. */
+export function droppedTone(referenceKey) {
+  return mix(css("--" + referenceKey) || css("--risk"),
+             css("--unselected-ink"), .74);
+}
+
 /** Colour resolution shared by every field in the product. */
-export function markColours(roster, strategyIndex, key, { dim } = {}) {
+export function markColours(roster, strategyIndex, key,
+                            { dim, referenceIndex = null, referenceKey = null } = {}) {
   // `harmed` is optional. Only some settings have an intervention that can leave a
   // person worse off; where none exists the channel is absent rather than all zero.
   const harmed = Array.isArray(roster.harmed) ? roster.harmed : null;
   const on = css("--" + key) || css("--risk");
   const harm = css("--harm");
   const off = dim || css("--unselected-ink");
+
+  // A field read on its own says who a rule picked. Read against a reference it
+  // says something the page is actually about: which people this rule keeps, which
+  // it reaches for instead, and which it drops. Grey means both lists agree, the
+  // same grey the movement ribbon uses, so the grammar is learned once.
+  const comparing = referenceIndex != null && referenceIndex !== strategyIndex;
+  const shared = css("--historical");
+  const dropped = comparing
+    ? mix(css("--" + (referenceKey || "risk")) || css("--risk"), off, .74)
+    : off;
+
   const out = new Array(roster.mask.length);
   for (let i = 0; i < roster.mask.length; i++) {
     const sel = ((roster.mask[i] >> strategyIndex) & 1) === 1;
-    out[i] = sel ? (harmed && harmed[i] ? harm : on) : off;
+    const ref = comparing && ((roster.mask[i] >> referenceIndex) & 1) === 1;
+    if (sel) out[i] = harmed && harmed[i] ? harm : (ref ? shared : on);
+    else out[i] = ref ? dropped : off;
   }
   return out;
 }

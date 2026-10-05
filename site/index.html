@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Marginal — allocation under constraint</title>
 <meta name="description" content="When capacity is smaller than need, does ranking by risk pick the same people as ranking by effect? An interactive research product across three domains.">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="dark">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -28,68 +28,101 @@
 
 <main id="app">
 
-  <!-- HERO -->
-  <header id="top" class="band band--ink">
+  <!-- HERO
+       The statement holds the left seven columns. The scale of the problem
+       answers it from the right four, on its baseline. The field then runs
+       eight columns wide with its legend and caption in the right margin. -->
+  <header id="top" class="band band--ink hero">
     <div class="wrap">
-      <span class="eyebrow">When there is not enough to go round</span>
-      <h1 style="margin-top:26px">Who gets the<br>help?</h1>
-      <div class="two-col" style="margin-top:38px">
-        <p class="lede measure">Every institution with a waiting list has to choose. Pick the people who look most
-        likely to act and you get one list. Pick the people your effort would actually
-        change and you get a different one. Almost none of the same names appear on both.</p>
-        <p class="mono" id="scarcity" style="color:var(--on-ink-dim);font-size:.9rem;align-self:end"></p>
+      <div class="ed">
+        <div class="ed-lead">
+          <span class="eyebrow">When there is not enough to go round</span>
+          <h1>Who gets the<br>help?</h1>
+          <p class="lede">Every institution with a waiting list has to choose. Pick the
+          people who look most likely to act and you get one list. Pick the people your
+          effort would actually change and you get a different one. Almost none of the
+          same names appear on both.</p>
+          <p class="thesis">When capacity is scarce, choosing who to contact is itself
+          the allocation decision.</p>
+        </div>
+        <aside class="ed-side ed-side--base">
+          <p class="mono margin-note" id="scarcity"></p>
+        </aside>
+
+        <figure class="hero-figure" style="margin:0">
+          <canvas id="heroField" aria-label="Two ways of choosing the same people"></canvas>
+        </figure>
+        <div class="hero-note">
+          <div class="hero-legend" id="heroLegend"></div>
+          <p class="hero-caption" id="heroCaption"></p>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- EXPLORE: the instrument -->
   <section id="explore" class="band band--ink" style="padding-top:0">
-    <div class="wrap stage">
+    <div class="wrap">
       <hr class="rule" style="margin-bottom:var(--step)">
-      <span class="eyebrow">The choice</span>
-      <h2 id="exploreTitle" style="margin-top:14px">The same people, sorted four ways</h2>
-      <p class="lede measure" id="exploreLede" style="margin-top:12px;color:var(--dim)"></p>
+      <div class="ed">
+        <div class="ed-lead">
+          <span class="eyebrow">The choice</span>
+          <h2 id="exploreTitle" style="margin-top:var(--s4)">The same people, sorted four ways</h2>
+        </div>
+        <div class="ed-side ed-side--base">
+          <p class="lede" id="exploreLede" style="font-size:var(--t-body);max-width:none"></p>
+        </div>
 
-      <span class="eyebrow" style="margin-top:30px">Which institution?</span>
-      <div class="domain-switch" id="domainSwitch" role="group" aria-label="Institution"></div>
+        <div class="ed-full">
+          <span class="eyebrow">Which institution?</span>
+          <div class="domain-switch" id="domainSwitch" role="group" aria-label="Institution"></div>
+          <div class="control-rail" id="rail" style="margin-top:var(--s6)"></div>
+          <div class="switch mobile-only" id="focus" role="group" aria-label="Strategy in focus"
+               style="margin-top:var(--s5);width:100%"></div>
+          <div class="field-grid" id="fields"></div>
+          <p class="ribbon-legend" id="fieldLegend"></p>
+          <p class="sample-note" id="sampleNote"></p>
+        </div>
 
-      <div class="control-rail" id="rail" style="margin-top:24px"></div>
-
-      <div class="switch mobile-only" id="focus" role="group" aria-label="Strategy in focus"
-           style="margin-top:18px;width:100%"></div>
-
-      <div class="field-grid" id="fields"></div>
-      <p class="mono" id="sampleNote" style="color:var(--on-ink-dim);font-size:.73rem;margin-top:16px"></p>
-
-      <div style="margin-top:var(--step)">
-        <span class="eyebrow">Who moved when the rule changed</span>
-        <canvas id="ribbon" style="width:100%;display:block;margin-top:12px"></canvas>
-        <p class="mono" id="ribbonLegend" style="font-size:.74rem;margin-top:8px"></p>
+        <div class="ed-full ribbon-block">
+          <span class="eyebrow" id="ribbonTitle">Where the two lists agree</span>
+          <p class="ribbon-lede" id="ribbonLede"></p>
+          <canvas id="ribbon"></canvas>
+          <p class="ribbon-legend" id="ribbonLegend"></p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- EVIDENCE: the three reveals -->
+  <!-- EVIDENCE: the three findings, then the dashboard -->
   <section id="evidence" class="band band--ink" style="padding-top:0">
     <div class="wrap">
       <hr class="rule" style="margin-bottom:var(--step)">
       <div class="verdict reveal" id="revealPeople"></div>
-      <div class="verdict reveal" id="revealOutcome" style="margin-top:22px"></div>
-      <div class="verdict reveal" id="revealRep" style="margin-top:22px"></div>
+      <div class="verdict reveal" id="revealOutcome"></div>
+      <div class="verdict reveal" id="revealRep"></div>
       <div class="readout reveal" id="readout"></div>
     </div>
   </section>
 
-  <!-- TECHNICAL LAYER -->
+  <!-- TECHNICAL LAYER: the research table across the full page -->
   <section class="band band--paper">
-    <div class="narrow">
-      <span class="eyebrow">The numbers behind it</span>
-      <h2 id="tableTitle" style="margin-top:14px">What each approach actually achieved</h2>
-      <p class="lede measure" id="tableLede" style="margin-top:12px"></p>
-      <table id="alloc"><thead><tr>
-        <th>Strategy</th><th>Extra gifts caused</th><th>Share of what was possible</th>
-        <th>Put off by contact</th><th>Already donors</th>
-      </tr></thead><tbody></tbody></table>
+    <div class="wrap">
+      <div class="ed">
+        <div class="ed-lead">
+          <span class="eyebrow">The numbers behind it</span>
+          <h2 id="tableTitle" style="margin-top:var(--s4)">What each approach actually achieved</h2>
+        </div>
+        <div class="ed-side ed-side--base">
+          <p class="lede" id="tableLede" style="font-size:var(--t-body);max-width:none"></p>
+        </div>
+        <div class="ed-full">
+          <div class="table-wrap"><table id="alloc" class="responsive"><thead><tr>
+            <th>Strategy</th><th>Extra gifts caused</th><th>Share of what was possible</th>
+            <th>Put off by contact</th><th>Already donors</th>
+          </tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -97,28 +130,42 @@
   <section id="domains" class="band band--paper" style="padding-top:0">
     <div class="wrap">
       <hr class="rule" style="margin-bottom:var(--step)">
-      <div class="narrow" id="evidenceLedger" style="margin-bottom:var(--step)"></div>
-      <span class="eyebrow">Three places this happens</span>
-      <h2 style="margin-top:14px">The same problem, three institutions</h2>
-      <p class="lede measure" style="margin-top:12px">Two of these use real records from real
-      institutions, and neither can tell us who was actually helped, because nobody ran an
-      experiment. The third is invented, which is exactly why it can.</p>
-      <div class="chapters" id="chapters"></div>
+      <div id="evidenceLedger"></div>
+      <div class="ed">
+        <div class="ed-lead">
+          <span class="eyebrow">Three places this happens</span>
+          <h2 style="margin-top:var(--s4)">The same problem, three institutions</h2>
+        </div>
+        <div class="ed-side ed-side--base">
+          <p class="lede" style="font-size:var(--t-body);max-width:none">Two of these use real
+          records from real institutions, and neither can tell us who was actually helped,
+          because nobody ran an experiment. The third is invented, which is exactly why it can.</p>
+        </div>
+        <div class="ed-full" style="margin-top:0">
+          <div class="chapters" id="chapters"></div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- METHOD -->
-  <section id="method-sec" class="band band--paper" style="padding-top:0">
-    <div class="narrow">
+  <section id="method" class="band band--paper" style="padding-top:0">
+    <div class="wrap">
       <hr class="rule" style="margin-bottom:var(--step)">
-      <span class="eyebrow">If you want to check the work</span>
-      <h2 id="method-h" style="margin-top:14px">How this was built, and what would break it</h2>
-      <p class="lede measure" style="margin-top:12px">None of this is needed to follow the argument
-      above. It is here because the argument should not be taken on trust.</p>
-      <div id="method" style="margin-top:26px"></div>
+      <div class="ed">
+        <div class="ed-lead">
+          <span class="eyebrow">If you want to check the work</span>
+          <h2 id="method-h" style="margin-top:var(--s4)">How this was built, and what would break it</h2>
+        </div>
+        <div class="ed-side ed-side--base">
+          <p class="lede" style="font-size:var(--t-body);max-width:none">None of this is needed
+          to follow the argument above. It is here because the argument should not be taken
+          on trust.</p>
+        </div>
+        <div class="ed-full" id="methodList" style="margin-top:0"></div>
+      </div>
     </div>
   </section>
-  
 
 </main>
 

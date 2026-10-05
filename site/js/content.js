@@ -5,25 +5,25 @@
    ========================================================================== */
 
 export const STRATEGIES = [
-  { key: "risk", label: "Most likely to give",
+  { key: "risk", label: "Who is most likely to give",
     question: "Who looks like a donor?", short: "likely",
-    note: "The people a normal prediction model puts at the top." },
-  { key: "effect", label: "Most likely to change",
-    question: "Who would a visit actually move?", short: "movable",
-    note: "The people whose decision a visit is estimated to change." },
-  { key: "historical", label: "Who we visit today",
+    note: "The people a standard prediction model puts at the top." },
+  { key: "effect", label: "Who a visit would change",
+    question: "Whose mind would a visit change?", short: "changed",
+    note: "The people whose decision the visit is estimated to alter." },
+  { key: "historical", label: "Who gets visited today",
     question: "Where does officer time go now?", short: "today",
-    note: "The pattern the existing programme follows." },
+    note: "The pattern the existing programme already follows." },
   { key: "oracle", label: "Perfect hindsight",
-    question: "Who should have been visited?", short: "perfect",
+    question: "What if we knew the true outcome?", short: "perfect",
     benchmark: true,
-    note: "Only knowable because this population is invented. No real institution could build this list." }
+    note: "Knowable only because this population is invented. No real institution could build this list." }
 ];
 
 export const HOSPITAL_LISTS = [
-  { key: "steadier", label: "The steadier model", question: "Sorts a little worse",
+  { key: "steadier", label: "The steadier model", question: "Sorts slightly worse, names the same patients when rebuilt",
     short: "steadier" },
-  { key: "accurate", label: "The more accurate model", question: "Wins every accuracy test",
+  { key: "accurate", label: "The more accurate model", question: "Sorts better, names a different ward each time",
     short: "accurate" }
 ];
 
@@ -33,50 +33,56 @@ export const HOSPITAL_LISTS = [
 export const EVIDENCE = {
   sourced: {
     label: "From the analysis",
-    note: "Produced by the model runs on this page. Reproducible from a fixed starting point."
+    tip: "Produced by the model runs behind this page. Rerunning from the same starting " +
+         "point gives the same number."
   },
   verified: {
     label: "Published figure",
-    note: "Traced to a named publication. Context for whether the exercise is realistic. " +
-          "None of these sets a number in the simulation."
+    tip: "Traced to a named publication. Included as context. It does not set any number " +
+         "in the simulation."
   },
   illustrative: {
     label: "Chosen, not measured",
-    note: "No published figure identifies this, so it is varied across a wide range " +
-          "rather than asserted. The conclusion is reported against the range."
+    tip: "No published figure pins this down, so it is varied across a wide range and the " +
+         "conclusion is reported against that range."
+  },
+  invented: {
+    label: "Invented population",
+    tip: "These people do not exist. That is deliberate: it is the only way to know what " +
+         "each of them would have done both with help and without it."
   }
 };
 
 export const FUNDRAISING_EVIDENCE = [
-  { k: "illustrative", what: "How many people there are, and how many can be reached",
-    detail: "50,000 people and room for 1,500. Portfolio sizes vary widely by institution " +
-            "and by what counts as a prospect, so this is one scenario among many. Capacity " +
-            "is varied from 1 to 20 percent throughout." },
-  { k: "illustrative", what: "How much a visit changes anyone",
-    detail: "No published study identifies how much one visit changes one person's decision. " +
-            "It is varied from nothing to twice the baseline, and the finding is reported " +
-            "across that whole range." },
-  { k: "illustrative", what: "How many people a visit puts off",
-    detail: "Set at 8 in 100 with no external basis, and varied from nobody to 1 in 5. " +
-            "This turns out to be the setting the whole comparison depends on." },
-
+  { k: "sourced", what: "Every result on this page",
+    detail: "Which people each approach picks, and what each approach achieved. All of it " +
+            "comes out of the model runs, not out of this page." },
   { k: "verified", what: "What published sources say about fundraising",
-    detail: "About 30 in 100 people give when reached by phone, across the sector. At one " +
-            "large university, just over half of major gift asks succeeded. At one " +
-            "foundation, 82 in 100 leadership donors gave again. Three of these describe " +
-            "single institutions, not the sector. None of them says what one visit does " +
-            "to one person, which is the number this page would actually need." },
+    detail: "About 30 in 100 people give when reached by phone. At one large university, " +
+            "just over half of major gift asks succeeded. At one foundation, 82 in 100 " +
+            "leadership donors gave again. Three of those describe single institutions, " +
+            "not the sector as a whole." },
   { k: "verified", what: "Where the $25,000 line comes from",
     detail: "Published profiles describe institutions treating gifts above $25,000 as " +
             "major. This page uses that figure because those conventions exist, not " +
             "because any body defines it that way." },
-  { k: "illustrative", what: "How big a gift officer's list is",
-    detail: "125 people per officer, chosen for this exercise. A candidate published " +
-            "figure was reviewed and left out because its source could not be pinned " +
-            "down, so nothing here claims what real portfolios look like." },
-  { k: "sourced", what: "Everything on the chart and in the table",
-    detail: "Every result shown here came out of the model runs, including which people " +
-            "each approach selects and what each one achieved." }
+  { k: "verified", what: "What no published source tells us",
+    detail: "None of them says what one visit does to one person. That is the number this " +
+            "page would actually need, and it does not exist in usable form. Every " +
+            "setting below exists because of that gap." },
+  { k: "invented", what: "The people themselves",
+    detail: "All 50,000 are generated. In return we know, for every one of them, what " +
+            "they would have done if visited and if left alone. No real dataset can tell " +
+            "you both." },
+  { k: "illustrative", what: "How much a visit changes anyone",
+    detail: "Varied from nothing to twice the baseline. The finding is reported across " +
+            "that whole range rather than at one setting." },
+  { k: "illustrative", what: "How many people a visit puts off",
+    detail: "Varied from nobody to one in five. This turns out to be the setting the " +
+            "entire comparison depends on." },
+  { k: "illustrative", what: "How many people can be reached",
+    detail: "125 per officer, and one in every thirty-three people overall. Varied from " +
+            "one to twenty percent throughout." }
 ];
 
 export const COPY = {
@@ -87,7 +93,8 @@ export const COPY = {
     "Every institution with a waiting list has to choose. Pick the people who look " +
     "most likely to act and you get one list. Pick the people your effort would " +
     "actually change and you get a different one. Almost none of the same names appear " +
-    "on both.",
+    "on both. When capacity is scarce, choosing who to contact is itself the " +
+    "allocation decision.",
   scarcity:
     "A university fundraising office has {pop} people it could contact and enough " +
     "officer time for {k}. Someone has to choose.",
@@ -103,11 +110,26 @@ export const COPY = {
   },
 
   reveals: {
-    people: { pre: "Same number of visits.", post: "Only {jaccard} of the same people." },
-    outcome: { pre: "Different result.", post: "{effect} extra gifts instead of {risk}." },
+    people: {
+      claim: "The same amount of outreach reached almost entirely different people.",
+      figure: "{jaccard}",
+      figureNote: "of the two lists are the same people",
+      read: "Both approaches contact the same number of prospects. They disagree almost " +
+            "completely about which ones."
+    },
+    outcome: {
+      claim: "Choosing on who can be changed produced more gifts than choosing on who looks likely.",
+      figure: "{effect}",
+      figureNote: "additional gifts caused, against {risk} the other way",
+      read: "Gifts that happened because of the visit, not gifts the visit happened to " +
+            "sit beside."
+    },
     representation: {
-      pre: "Different people entirely.",
-      post: "{hist} of today's list already gives. The list that would have worked best is {oracle}."
+      claim: "The people who look like donors are largely not the people worth visiting.",
+      figure: "{hist}",
+      figureNote: "of today's list already gives, against {oracle} of the best possible list",
+      read: "Current practice concentrates on existing donors. The value sits with people " +
+            "who have never given."
     }
   },
 
