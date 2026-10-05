@@ -748,15 +748,37 @@ function wireReveals() {
   }), { threshold: .35 });
   $$(".reveal").forEach(el => io.observe(el));
 }
+// The current section is whichever one has crossed a line a third of the way down the
+// screen, worked out from positions on every scroll. Reacting only to sections entering
+// that line left the highlight stale when scrolling back up, and waiting for a share of
+// a section to be visible failed on phones, where most sections are taller than the
+// screen.
 function wireNav() {
-  const io = new IntersectionObserver(es => es.forEach(e => {
-    if (!e.isIntersecting) return;
-    $$(".nav-links a").forEach(a =>
-      a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + e.target.id)));
-  }), { threshold: .3, rootMargin: "-58px 0px -55% 0px" });
-  // Method lives in a section and Sources in the footer; observing only
-  // `section[id]` left both links permanently unlit.
-  $$("section[id],header[id],footer[id]").forEach(s => io.observe(s));
+  const links = $$(".nav-links a");
+  const linked = new Set(links.map(a => a.getAttribute("href").slice(1)));
+  // Every top-level block in page order. One without a link of its own belongs to the
+  // nearest linked block above it, so the numbers table counts as Evidence.
+  const blocks = $$("#top, main > section, footer");
+  const mark = id => links.forEach(a =>
+    a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + id)));
+  let queued = 0;
+  const update = () => {
+    queued = 0;
+    const line = innerHeight * 0.35;
+    let owner = null, current = null;
+    for (const b of blocks) {
+      if (linked.has(b.id)) owner = b.id;
+      if (b.getBoundingClientRect().top <= line) current = owner;
+    }
+    // The last block can be too short to reach the line; at the very bottom it is current.
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4)
+      current = blocks.at(-1)?.id ?? current;
+    mark(current);
+  };
+  const queue = () => { if (!queued) queued = requestAnimationFrame(update); };
+  addEventListener("scroll", queue, { passive: true });
+  addEventListener("resize", queue);
+  update();
 }
 let rt;
 addEventListener("resize", () => {

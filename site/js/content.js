@@ -115,7 +115,7 @@ export const COPY = {
             "is, the less they agree about which ones."
     },
     outcome: {
-      claim: "Choosing on who can be changed produced more gifts than choosing on who looks likely.",
+      claim: "Choosing on who a visit would change produced more gifts than choosing on who looks likely.",
       figure: "{effect}",
       figureNote: "additional gifts caused, against {risk} the other way",
       read: "Gifts that happened because of the visit, not gifts the visit happened to " +

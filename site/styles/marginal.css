@@ -692,3 +692,21 @@ footer p{max-width:46ch;line-height:1.6}
   table.responsive td:first-child::before{display:none}
   .table-wrap{overflow:visible;margin-inline:0;padding-inline:0}
 }
+
+/* Phone navigation. Placed last on purpose: the tablet rule above fixes the bar at
+   58px, and because it comes later in the file it was overriding the phone rule that
+   lets the bar grow to two rows. The link row then hung below a one-row bar with no
+   background, and the page showed through it. */
+@media(max-width:760px){
+  .nav .nav-in{height:auto;gap:var(--s3) var(--s4)}
+  .nav .nav-links{gap:var(--s3)}
+}
+/* Final phone fixes. Placed last on purpose. The page must never scroll sideways:
+   on a phone that lets the view drift and carries the sticky bar out of sight. */
+html, body { overflow-x: clip; }
+@media (hover: none), (max-width: 760px) {
+  .badge[data-tip]::after { display: none; }
+}
+@media (max-width: 720px) {
+  #alloc td:first-child { width: auto; text-align: left; }
+}
