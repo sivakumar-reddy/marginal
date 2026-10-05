@@ -78,8 +78,9 @@ category and discharge location. The page never read them. They were removed fro
 the stripped file, and every earlier version of `site/data/marginal.json` was purged
 from git history before any remote existed.
 
-**Code publication.** Clause 8 is met when this repository, without data, is public.
-Record the repository URL here when it is.
+**Code publication.** Clause 8 met 2026-10-05: this repository, without data, is public
+at https://github.com/sivakumar-reddy/marginal. The site built from it is live at
+https://marginal-site.vercel.app.
 
 ### Advancement domain population
 
