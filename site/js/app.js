@@ -1,11 +1,12 @@
 /* ==========================================================================
    MARGINAL — application
 
-   Two institutions are explorable. They ask the same question but the thing
+   Three institutions are explorable. They ask the same question but the thing
    that varies is different in each, so the controls differ:
 
      university    a moment in the term. How much do you know yet?
      fundraising   nothing varies but the rule. Both know everything.
+     hospital      the model is rebuilt. Does the same list come back?
 
    The visual grammar does not change between them. A mark is a person, a
    colour is an approach, pink is harm, dim is not selected.
@@ -394,7 +395,7 @@ function renderReveals() {
     const c = frame();
     const churn = 1 - c.boosted.overlap_median, steady = 1 - c.logit.overlap_median;
     set("#revealPeople",
-      "The more accurate model could not name the same ward twice.",
+      "Rebuild the more accurate model and its list changes.",
       `${fmt.pct(c.boosted.overlap_median)} repeated`,
       `Rebuilt on a slightly different sample it keeps ${fmt.pct(c.boosted.overlap_median)} ` +
       `of its list. The slightly less accurate model keeps ${fmt.pct(c.logit.overlap_median)}.`);
@@ -402,7 +403,7 @@ function renderReveals() {
       "Across eight rebuilds it named far more patients than the ward has beds.",
       `${c.boosted.union_over_k.toFixed(2)}\u00d7`,
       "Distinct patients named, per place available. Every one of them was, on some " +
-      "rebuild, the most urgent case.");
+      "rebuild, among those the model ranked most urgent.");
     set("#revealRep",
       "None of this shows up in the number the ward reports.",
       `${fmt.pct(c.boosted.reported_total_spread)}`,
@@ -426,6 +427,8 @@ function renderReveals() {
   const d = eq.is_prior_donor ? eq.is_prior_donor["1"] : null;
   const R = COPY.reveals;
   const vars = {
+    howDifferent: mv.jaccard < 0.15 ? "almost entirely different"
+                : mv.jaccard < 0.5  ? "mostly different" : "partly different",
     jaccard: fmt.pct(mv.jaccard),
     effect: fmt.signed(cells.effect?.expected_incremental),
     risk: fmt.signed(cells.risk?.expected_incremental),
@@ -436,7 +439,7 @@ function renderReveals() {
                            ["#revealOutcome", "outcome"],
                            ["#revealRep", "representation"]]) {
     const r = R[key];
-    set(id, r.claim, fmt.tmpl(r.figure, vars),
+    set(id, fmt.tmpl(r.claim, vars), fmt.tmpl(r.figure, vars),
         fmt.tmpl(r.figureNote, vars) + ". " + r.read);
   }
   const rk = selectionStats("risk"), ef = selectionStats("effect");
@@ -493,9 +496,9 @@ function renderTable() {
     }).join("");
     setText("#tableTitle", "Accuracy against a decision you can repeat");
     setText("#tableLede",
-      "The more accurate model sorts better on every standard test and cannot name the " +
-      "same ward twice. Under a fixed number of places, the question is not which model " +
-      "scores higher but which one produces a decision the ward can act on.");
+      "The more accurate model sorts patients better, and its list changes when it is " +
+      "rebuilt. Under a fixed number of places, the question is not which model scores " +
+      "higher but which one produces a decision the ward can act on.");
     return;
   }
   head.innerHTML = `<th>Approach</th><th>Extra gifts caused</th><th>Share of what was possible</th>
@@ -530,7 +533,10 @@ function renderTable() {
 function renderHero() {
   const cv = $("#heroField");
   if (!cv || !S.roster) return;
-  const f = S.roster.by_capacity[S.cap];
+  // The hero states the headline scenario. It does not follow the capacity control,
+  // so the lede beside it stays true whatever the reader has selected below.
+  const hk = (S.roster.headline_capacity ?? 0.03).toFixed(2);
+  const f = S.roster.by_capacity[hk] || S.roster.by_capacity[S.cap];
   const keys = S.roster.strategies;
   const ir = keys.indexOf("risk"), ie = keys.indexOf("effect");
   const n = f.mask.length;
@@ -575,7 +581,6 @@ function renderEvidence() {
     const meta = EVIDENCE[e.k] || {};
     return `<tr>
       <td><span class="badge badge--${e.k === "sourced" ? "analysis"
-        : e.k === "verified" ? "published"
         : e.k === "invented" ? "invented" : "chosen"}"
         tabindex="0" data-tip="${(meta.tip || "").replace(/"/g, "&quot;")}">${meta.label}</span></td>
       <td><strong>${e.what}</strong><br>
@@ -631,6 +636,7 @@ function renderMethod() {
   const mo = (S.adv && S.adv.model) || {};
   const pop = (S.adv && S.adv.population) || {};
   const bias = Math.abs(pop.true_ate) ? pop.confounding_bias / Math.abs(pop.true_ate) : null;
+  const hc = S.clin?.by_capacity?.[(S.clin?.headline_capacity ?? 0.05).toFixed(2)] || {};
 
   // Question, one line answer, then the detail. A reader who stops at the answer
   // should still have the point.
@@ -656,16 +662,16 @@ function renderMethod() {
       population that includes the true outcome under both conditions, which is the whole
       reason that population is useful.`],
     ["Would the same list come back tomorrow?",
-     "Not reliably. The more accurate hospital model could not name the same ward twice.",
-     `Rebuilt on a slightly different sample it keeps around half its list, while the
-      slightly less accurate model keeps most of its own. The reported total barely moves
-      in either case, so nothing in a standard report would reveal it.`],
+     "Not exactly. Rebuilt on a slightly different sample, the more accurate hospital model keeps only part of its list.",
+     `At a typical programme size it keeps
+      <b>${fmt.pct(hc.boosted?.overlap_median)}</b> of its list, while the slightly less
+      accurate model keeps <b>${fmt.pct(hc.logit?.overlap_median)}</b>. The reported total
+      barely moves in either case, so nothing in a standard report would reveal it.`],
     ["What is assumed rather than measured",
      "How much anyone benefits, in all three settings.",
      `Neither the university nor the hospital ran an experiment, so benefit is assumed
       there and varied across a wide range. The fundraising population is invented
-      outright and none of its numbers are published figures. Published fundraising
-      sources are used only as context and set nothing.`],
+      outright, and none of its numbers comes from a published figure.`],
     ["What would change the conclusion",
      "Evidence that outreach cannot make anyone worse off.",
      `The advantage of choosing on effect rather than on likelihood comes almost entirely
@@ -685,7 +691,20 @@ function renderMethod() {
   setHTML("#methodList", html);
 }
 
+// Both real datasets carry attribution as a condition of use: OULAD is licensed
+// CC BY 4.0, and PhysioNet asks every user of MIMIC-IV to cite the dataset, the
+// paper describing it, and PhysioNet itself. The citations are reproduced as the
+// providers give them; the full records live in the sources register.
 function renderFooter() {
+  const link = (href, text) =>
+    `<a href="${href}" target="_blank" rel="noopener" style="color:inherit;` +
+    `text-decoration:underline;text-decoration-color:var(--line-strong);` +
+    `text-underline-offset:2px">${text}</a>`;
+  const cite = html =>
+    `<span style="display:block;margin-top:var(--s3);color:var(--text-faint);` +
+    `font-size:.86em;line-height:1.55">${html}</span>`;
+  const pop = S.roster?.n_population;
+
   setHTML("#foot", `
     <div class="cols">
       <div>
@@ -695,12 +714,28 @@ function renderFooter() {
       </div>
       <div>
         <span class="eyebrow">The three sources</span>
-        <p><strong>University.</strong> Anonymised student records from a distance
-        learning university.</p>
-        <p><strong>Hospital.</strong> De-identified admission records from a US teaching
-        hospital, used under a credentialed research agreement.</p>
-        <p><strong>Fundraising.</strong> An invented population, with published sector
-        figures used as context only. Not real donors.</p>
+        <p><strong>University.</strong> The Open University Learning Analytics Dataset:
+        anonymised records from a UK distance learning university.
+        ${cite(`Kuzilek J., Hlosta M., Zdrahal Z. Open University Learning Analytics
+          dataset. Sci. Data 4:170171 (2017).
+          ${link("https://doi.org/10.1038/sdata.2017.171", "doi:10.1038/sdata.2017.171")}.
+          Licensed ${link("https://creativecommons.org/licenses/by/4.0/", "CC BY 4.0")};
+          the university figures on this page are derived from it.`)}</p>
+        <p><strong>Hospital.</strong> MIMIC-IV, version 3.1: de-identified admission
+        records from a US teaching hospital, used under a PhysioNet credentialed data use
+        agreement. For a random sample of admissions, this page shows only which ones each
+        model selected: no identifiers, no clinical values, no outcomes.
+        ${cite(`Johnson A. et al. MIMIC-IV (version 3.1). PhysioNet (2024).
+          ${link("https://doi.org/10.13026/kpb9-mt58", "doi:10.13026/kpb9-mt58")}.
+          Johnson A.E.W. et al. MIMIC-IV, a freely accessible electronic health record
+          dataset. Sci Data 10, 1 (2023).
+          ${link("https://doi.org/10.1038/s41597-022-01899-x", "doi:10.1038/s41597-022-01899-x")}.
+          Pollard T. et al. PhysioNet as a global platform for biomedical research.
+          Nature Health (2026).
+          ${link("https://doi.org/10.1038/s44360-026-00096-z", "doi:10.1038/s44360-026-00096-z")}.`)}</p>
+        <p><strong>Fundraising.</strong> An invented population${pop ? ` of
+        ${fmt.int(pop)}` : ""}. No number in it comes from a published figure. Not real
+        donors.</p>
       </div>
     </div>`);
 }

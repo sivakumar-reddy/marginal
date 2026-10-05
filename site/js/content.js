@@ -21,25 +21,29 @@ export const STRATEGIES = [
 ];
 
 export const HOSPITAL_LISTS = [
-  { key: "steadier", label: "The steadier model", question: "Sorts slightly worse, names the same patients when rebuilt",
+  { key: "steadier", label: "The steadier model", question: "Sorts slightly worse, keeps most of its list when rebuilt",
     short: "steadier" },
-  { key: "accurate", label: "The more accurate model", question: "Sorts better, names a different ward each time",
+  { key: "accurate", label: "The more accurate model", question: "Sorts better, keeps less of its list when rebuilt",
     short: "accurate" }
 ];
 
 // The fundraising chapter has to be readable as two kinds of thing at once: results
 // the analysis produced, and settings that were chosen because no published figure
 // pins them down. A reader should never have to guess which is which.
+//
+// No published figure is quoted here. Sector figures were considered as context, but
+// their citations were never completed, so none of them appears on the page. See the
+// sources register.
 export const EVIDENCE = {
   sourced: {
     label: "From the analysis",
     tip: "Produced by the model runs behind this page. Rerunning from the same starting " +
          "point gives the same number."
   },
-  verified: {
-    label: "Published figure",
-    tip: "Traced to a named publication. Included as context. It does not set any number " +
-         "in the simulation."
+  fixed: {
+    label: "Chosen, not measured",
+    tip: "A setting the simulation needs and no data can supply. Held fixed and stated " +
+         "here rather than hidden."
   },
   illustrative: {
     label: "Chosen, not measured",
@@ -57,26 +61,17 @@ export const FUNDRAISING_EVIDENCE = [
   { k: "sourced", what: "Every result on this page",
     detail: "Which people each approach picks, and what each approach achieved. All of it " +
             "comes out of the model runs, not out of this page." },
-  { k: "verified", what: "What published sources say about fundraising",
-    detail: "About 30 in 100 people give when reached by phone. At one large university, " +
-            "just over half of major gift asks succeeded. At one foundation, 82 in 100 " +
-            "leadership donors gave again. Three of those describe single institutions, " +
-            "not the sector as a whole." },
-  { k: "verified", what: "Where the $25,000 line comes from",
-    detail: "Published profiles describe institutions treating gifts above $25,000 as " +
-            "major. This page uses that figure because those conventions exist, not " +
-            "because any body defines it that way." },
-  { k: "verified", what: "What no published source tells us",
-    detail: "None of them says what one visit does to one person. That is the number this " +
-            "page would actually need, and it does not exist in usable form. Every " +
-            "setting below exists because of that gap." },
   { k: "invented", what: "The people themselves",
     detail: "All 50,000 are generated. In return we know, for every one of them, what " +
             "they would have done if visited and if left alone. No real dataset can tell " +
             "you both." },
   { k: "illustrative", what: "How much a visit changes anyone",
-    detail: "Varied from nothing to twice the baseline. The finding is reported across " +
-            "that whole range rather than at one setting." },
+    detail: "No published estimate we could find says what one visit does to one person, " +
+            "and that is the number this would need. So it is varied from nothing to " +
+            "twice the baseline, and the finding is reported across that whole range." },
+  { k: "fixed", what: "Where the major gift line sits",
+    detail: "Gifts above $25,000 count as major here. That is one choice of where to draw " +
+            "the line, not a definition any body sets." },
   { k: "illustrative", what: "How many people a visit puts off",
     detail: "Varied from nobody to one in five. This turns out to be the setting the " +
             "entire comparison depends on." },
@@ -111,11 +106,13 @@ export const COPY = {
 
   reveals: {
     people: {
-      claim: "The same amount of outreach reached almost entirely different people.",
+      // {howDifferent} is chosen from the overlap at the capacity on screen, so the
+      // sentence stays true as the reader moves the control.
+      claim: "The same amount of outreach reached {howDifferent} people.",
       figure: "{jaccard}",
       figureNote: "of the two lists are the same people",
-      read: "Both approaches contact the same number of prospects. They disagree almost " +
-            "completely about which ones."
+      read: "Both approaches contact the same number of prospects. The less room there " +
+            "is, the less they agree about which ones."
     },
     outcome: {
       claim: "Choosing on who can be changed produced more gifts than choosing on who looks likely.",
@@ -163,9 +160,9 @@ export const COPY = {
       action: "Enrolment in a follow-up care programme",
       finding: "The total held steady. The names underneath it did not.",
       body:
-        "The more accurate model won on every standard measure and produced a list that " +
-        "changed almost completely each time it was rebuilt, while the number it " +
-        "reported barely moved."
+        "The more accurate model sorted patients better, but each rebuild on a slightly " +
+        "different sample swapped out a substantial share of its list, while the steadier " +
+        "model kept most of its own. The number either one would report barely moved."
     },
     clinicalReveals: {
       people: "Rebuild the more accurate model on a slightly different sample and {churn} of its list changes.",
